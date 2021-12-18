@@ -111,11 +111,3 @@ let rec free_type_variables : poly_t -> type_vars = function
   | PUnsolved u -> Set.singleton (module String) u
   | PFunction (a, b) -> Set.union (free_type_variables a) (free_type_variables b)
   | PForall (a, b) -> Set.remove (free_type_variables b) a
-
-module Sugar = struct
-  let fn (a : poly_t) (b : poly_t) : poly_t = PFunction (a, b)
-
-  let vr (a : string) : poly_t = PVariable a
-
-  let un (a : string) : poly_t = PUnsolved a
-end
