@@ -1,8 +1,8 @@
 * Sulfur
 Sulfur is a simple functional programming language derived from ML and implemented in OCaml with
-type inference. It makes use of bidirectional type inference and type checking in the spirit of the
+rich type inference. It makes use of bidirectional type system in the spirit of the
 [[https://www.cl.cam.ac.uk/~nk480/bidir.pdf][Complete and Easy Bidirectional Typechecking for Higher-Rank Polymorphism]] paper which allows
-terms to be inferred with minimal type annotations.
+for terms to be inferred with minimal type annotations.
 
 ** Features
 + Type inference and type checking
