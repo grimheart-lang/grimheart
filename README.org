@@ -1,0 +1,25 @@
+* Sulfur
+Sulfur is a simple functional programming language derived from ML and implemented in OCaml with
+type inference. It makes use of bidirectional type inference and type checking in the spirit of the
+[[https://www.cl.cam.ac.uk/~nk480/bidir.pdf][Complete and Easy Bidirectional Typechecking for Higher-Rank Polymorphism]] paper which allows
+terms to be inferred with minimal type annotations.
+
+** Features
++ Type inference and type checking
+  Types of expressions can be inferred with miniaml type annotations. At most, a single top-level
+  type annotation is required in order to infer more complex types.
+
++ Higher rank polymorphism
+  Universal quantifiers (=forall=) can appear inside the right-hand side of a universally quantified
+  type. This allows functions to accept and return polymorphic values. As an example:
+#+begin_src haskell
+x :: (forall a. a -> a) -> (Int, String)
+x f = (f 42, f "meaning of life")
+#+end_src
+
+** References
+Sulfur is a research project towards the design and implementation of functional programming
+languages, and uses the following references for its implementation.
+
+- [[https://www.cl.cam.ac.uk/~nk480/bidir.pdf][Complete and Easy Bidirectional Typechecking for Higher-Rank Polymorphism]]
+- [[https://github.com/Gabriel439/grace/][Grace, a functional programming language with a bidirectional type system]]
