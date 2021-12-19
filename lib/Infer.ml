@@ -150,7 +150,10 @@ and instantiateRight (gamma : Context.t) (_A : poly_t) (_a : string) : (Context.
      let a2 = fresh_name () in
      let gamma =
        let gammaM =
-         [CSolved (_a, MFunction (MUnsolved a1, MUnsolved a2)); CUnsolved a1; CUnsolved a2]
+         [ CSolved (_a, MFunction (MUnsolved a1, MUnsolved a2))
+         ; CUnsolved a1
+         ; CUnsolved a2
+         ]
        in
        List.concat [gammaL;gammaM;gammaR]
      in
@@ -197,13 +200,11 @@ and synth (gamma : Context.t) (e : expr_t) : (Context.t * poly_t, [> error]) res
   | EAbstraction (x, e) ->
      let _a = fresh_name () in
      let _b = fresh_name () in
-
      let* delta =
        let x' = fresh_name () in
        scoped (CUnsolved _b :: CUnsolved _a :: gamma) (CVariable (x', PUnsolved _a))
          (function gamma -> check gamma (expr_subst x (EVariable x') e) (PUnsolved _b))
      in
-
      Ok (delta, PFunction (PUnsolved _a, PUnsolved _b))
   | EApplication (f, x) ->
      let* (theta, f_t) = synth gamma f in
