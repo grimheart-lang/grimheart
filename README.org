@@ -24,7 +24,12 @@ This project uses =dune= and =opam=. To create a development environment, create
 $ opam switch create ./ --deps-only
 #+end_src
 
-Once the dependencies are installed, you can now run =dune= commands for development.
+Once the dependencies are installed, you can now run =dune= commands for development. Additionally,
+=utop= and =odoc= can also be installed to provide a prompt and provide documentation respectively.
+#+begin_src sh
+$ opam install utop
+$ opam install odoc
+#+end_src
 
 ** References
 Sulfur is a research project towards the design and implementation of functional programming
