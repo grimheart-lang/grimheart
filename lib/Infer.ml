@@ -161,7 +161,7 @@ and instantiateRight (gamma : Context.t) (_A : poly_t) (_a : string) : (Context.
   | PForall (_b, _B) ->
      let _b' = fresh_name () in
      scoped_unsolved gamma _b'
-       (function gamma -> instantiateLeft gamma "!" (poly_subst _b (PUnsolved _b') _B))
+       (function gamma -> instantiateLeft gamma _b' (poly_subst _b (PUnsolved _b') _B))
 
 and check (gamma : Context.t) (e : expr_t) (_A: poly_t) : (Context.t, [> error]) result =
   match (e, _A) with
