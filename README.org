@@ -17,6 +17,15 @@ x :: (forall a. a -> a) -> (Int, String)
 x f = (f 42, f "meaning of life")
 #+end_src
 
+** Hacking
+This project uses =dune= and =opam=. To create a development environment, create a local =opam= switch.
+#+begin_src sh
+# This command will take some time
+$ opam switch create ./ --deps-only
+#+end_src
+
+Once the dependencies are installed, you can now run =dune= commands for development.
+
 ** References
 Sulfur is a research project towards the design and implementation of functional programming
 languages, and uses the following references for its implementation.
