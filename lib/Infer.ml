@@ -211,15 +211,18 @@ and synth (gamma : Context.t) (e : expr_t) : (Context.t * poly_t, [> error]) res
      synth_app theta (Context.apply theta f_t) x
   | EAnnotation (e, a) ->
      let* theta = check gamma e a in Ok (theta, a)
-  | ELet (x, v, e) ->
-     let* (v_theta, v_t) = synth gamma v in
-     let x' = fresh_name () in
-     let* (e_theta, e_t) =
-       synth
-         (CVariable (x', v_t) :: v_theta)
-         (expr_subst x (EVariable x') e)
+  | ELet (x, a, v, e) ->
+     let* (v_theta, v_t) = match a with
+       | Some v_t ->
+          let* v_theta = check gamma v v_t in
+          Ok (v_theta, v_t)
+       | None ->
+          synth gamma v
      in
-     Ok (e_theta, e_t)
+     let x' = fresh_name () in
+     synth
+       (CVariable (x', v_t) :: v_theta)
+       (expr_subst x (EVariable x') e)
 
 and synth_app (gamma : Context.t) (_A : poly_t) (e : expr_t) : (Context.t * poly_t, [> error]) result =
   match _A with

@@ -23,7 +23,7 @@ type expr_t =
   | EAbstraction of string * expr_t
   | EApplication of expr_t * expr_t
   | EAnnotation of expr_t * poly_t
-  | ELet of string * expr_t * expr_t
+  | ELet of string * poly_t option * expr_t * expr_t
   [@@deriving eq]
 
 let rec expr_subst (expected : string) (replacement : expr_t) (original : expr_t) : expr_t =
@@ -46,9 +46,10 @@ let rec expr_subst (expected : string) (replacement : expr_t) (original : expr_t
        )
   | EAnnotation (e, t) ->
      EAnnotation (expr_subst expected replacement e, t)
-  | ELet (x, v, e) ->
+  | ELet (x, a, v, e) ->
      ELet
        ( x
+       , a
        , expr_subst expected replacement v
        , if String.(x = expected) then
            e

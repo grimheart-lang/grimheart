@@ -30,7 +30,7 @@ type expr_t =
   | EAbstraction of string * expr_t
   | EApplication of expr_t * expr_t
   | EAnnotation of expr_t * poly_t
-  | ELet of string * expr_t * expr_t
+  | ELet of string * poly_t option * expr_t * expr_t
 
 val equal_expr_t : expr_t -> expr_t -> bool
 
