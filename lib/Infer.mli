@@ -5,8 +5,8 @@ type error =
     [ `CannotFindVariable of string * Context.t
     | `CannotSubtype of Syntax.poly_t * Syntax.poly_t
     | `CannotSynthesizeApplication of Syntax.poly_t
-    | `FailedToBreakApart
     | `NotWellFormed of Context.t * Syntax.poly_t
+    | Context.error
     ]
 
 (** [infer expression] synthesizes the type of some expression, and quantifies
