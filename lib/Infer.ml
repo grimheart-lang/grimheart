@@ -22,7 +22,7 @@ let fresh_name : unit -> string =
 
 let rec well_formed_type (context : Context.t) (poly_type : poly_t) : (unit, [> error]) result =
   match poly_type with
-  | PLiteral -> Ok ()
+  | PUnit -> Ok ()
   | PVariable v ->
      if List.mem context (CQuantified v) ~equal:equal_element_t then
        Ok ()
@@ -56,7 +56,7 @@ let scoped_unsolved context unsolved action =
 
 let rec subtype (gamma : Context.t) (_A : poly_t) (_B : poly_t) : (Context.t, [> error]) result =
   match (_A, _B) with
-  | PLiteral, PLiteral ->
+  | PUnit, PUnit ->
      Ok gamma
   | PVariable _a, PVariable _b when String.(_a = _b) ->
      let* _ = well_formed_type gamma _A in Ok gamma
@@ -91,7 +91,7 @@ and instantiateLeft (gamma : Context.t) (_a : string) (_A : poly_t) : (Context.t
     Ok (List.append gammaL (CSolved (_a, _t) :: gammaR))
   in
   match _A with
-  | PLiteral -> solveLeft MLiteral
+  | PUnit -> solveLeft MUnit
   | PVariable v -> solveLeft (MVariable v)
   | PUnsolved _b ->
      ( match break_apart_at (CUnsolved _b) gammaL with
@@ -130,7 +130,7 @@ and instantiateRight (gamma : Context.t) (_A : poly_t) (_a : string) : (Context.
     Ok (List.append gammaL (CSolved (_a, _t) :: gammaR))
   in
   match _A with
-  | PLiteral -> solveRight MLiteral
+  | PUnit -> solveRight MUnit
   | PVariable v -> solveRight (MVariable v)
   | PUnsolved _b ->
      ( match break_apart_at (CUnsolved _b) gammaL with
@@ -168,7 +168,7 @@ and instantiateRight (gamma : Context.t) (_A : poly_t) (_a : string) : (Context.
 
 and check (gamma : Context.t) (e : expr_t) (_A: poly_t) : (Context.t, [> error]) result =
   match (e, _A) with
-  | ELiteral, PLiteral ->
+  | EUnit, PUnit ->
      Ok gamma
   | EAbstraction (x, e), PFunction (_A1, _A2) ->
      let x' = fresh_name () in
@@ -184,8 +184,8 @@ and check (gamma : Context.t) (e : expr_t) (_A: poly_t) : (Context.t, [> error])
 
 and synth (gamma : Context.t) (e : expr_t) : (Context.t * poly_t, [> error]) result =
   match e with
-  | ELiteral ->
-     Ok (gamma, PLiteral)
+  | EUnit ->
+     Ok (gamma, PUnit)
   | EVariable v ->
      let find_variable = function
        | CVariable (v', t) when String.(v = v') -> Some t

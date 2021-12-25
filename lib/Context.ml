@@ -17,7 +17,7 @@ type error =
 
 let rec apply (context : t) (poly_type : poly_t) : poly_t =
   match poly_type with
-  | PLiteral -> PLiteral
+  | PUnit -> PUnit
   | PVariable _ -> poly_type
   | PUnsolved unsolved ->
      let find_solved = function
