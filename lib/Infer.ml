@@ -250,15 +250,18 @@ and synth_app (gamma : Context.t) (_A : poly_t) (e : expr_t) : (Context.t * poly
 
 let infer (e : expr_t) : (poly_t, [> error]) result =
   let* (delta, poly_type) = synth [] e in
-  let unsolved =
-    let predicate = function
-      | CUnsolved u -> Some u
-      | _ -> None
-    in
-    List.filter_map delta ~f:predicate
+  let fresh_variable =
+    let i = ref (-1) in
+    function () ->
+      incr i;
+      String.of_char (Char.of_int_exn (97 + (!i mod 26)))
   in
-  let algebra u t =
-    PForall (u, poly_subst u (PVariable u) t)
+  let algebra element poly_type =
+    match element with
+    | CUnsolved u ->
+       let u' = fresh_variable () in
+       PForall (u', poly_subst u (PVariable u') poly_type)
+    | _ ->
+       poly_type
   in
-  Ok (List.fold_right unsolved
-        ~f:algebra ~init:(Context.apply delta poly_type))
+  Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
