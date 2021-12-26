@@ -8,6 +8,8 @@
 (homepage "https://github.com/sjpgarcia/sulfur")
 (bug_reports "https://github.com/sjpgarcia/sulfur/issues")
 
+(using menhir 2.1)
+
 (generate_opam_files true)
 
 (package
