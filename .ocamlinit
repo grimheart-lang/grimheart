@@ -1,4 +1,0 @@
-open Sulfur
-open Context
-open Infer
-open Syntax
