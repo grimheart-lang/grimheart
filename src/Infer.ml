@@ -96,8 +96,12 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e)
      instantiateRight gamma _A b
   | Apply (a1, b1), Apply (a2, b2) ->
      let* gamma = subtype gamma a1 a2 in subtype gamma b1 b2
-  | _A, Annotate (_B, _) | Annotate (_A, _), _B ->
-     subtype gamma _A _B
+  | _U, Annotate (_T, _K) ->
+     let* gamma = check_kind gamma _U _K in
+     subtype gamma _U _T
+  | Annotate (_T, _K), _U ->
+     let* gamma = check_kind gamma _U _K in
+     subtype gamma _T _U
   | _ ->
      Error (FailedSubtyping (_A, _B))
 
@@ -412,27 +416,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) : (Context.t * 
   | _ ->
      Error (FailedInfererence (e, _A))
 
-let infer_type_with (context : Context.t) (e : _ Expr.t) : (Type.t, e) result =
-  let* (delta, poly_type) = infer context e in
-  let fresh_variable =
-    let i = ref (-1) in
-    function () ->
-      incr i;
-      String.of_char (Char.of_int_exn (97 + (!i mod 26)))
-  in
-  let algebra element poly_type =
-    match element with
-    | Element.Unsolved u ->
-       let u' = fresh_variable () in
-       Forall (u', None, Type.substitute u (Variable u') poly_type)
-    | _ ->
-       poly_type
-  in
-  Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
-
-let infer_type : _ Expr.t -> (Type.t, e) result = infer_type_with []
-
-let rec check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) : (Context.t, e) result =
+and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) : (Context.t, e) result =
   let open Primitives in
   match (_T, _K) with
   | Constructor _, Constructor "Type"
@@ -542,3 +526,23 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
      let* delta = check_kind gamma _X _A in Ok (delta, _B)
   | _ ->
      raise (Failure "Impossible case in synth_app_kind")
+
+let infer_type_with (context : Context.t) (e : _ Expr.t) : (Type.t, e) result =
+  let* (delta, poly_type) = infer context e in
+  let fresh_variable =
+    let i = ref (-1) in
+    function () ->
+      incr i;
+      String.of_char (Char.of_int_exn (97 + (!i mod 26)))
+  in
+  let algebra element poly_type =
+    match element with
+    | Element.Unsolved u ->
+       let u' = fresh_variable () in
+       Forall (u', None, Type.substitute u (Variable u') poly_type)
+    | _ ->
+       poly_type
+  in
+  Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
+
+let infer_type : _ Expr.t -> (Type.t, e) result = infer_type_with []
