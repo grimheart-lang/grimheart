@@ -43,8 +43,12 @@ let rec well_formed_type (context : Context.t) (t : Type.t) : (unit, e) Result.t
        | Some _ -> Ok ()
        | None -> Error (IllFormedType t)
      )
-  | Forall (a, _, t) ->
-     well_formed_type (Quantified a :: context) t
+  | Forall (a, k, t) ->
+     let* () = well_formed_type (Quantified a :: context) t in
+     ( match k with
+       | Some k -> well_formed_type context k
+       | None -> Ok ()
+     )
   | Apply (t1, t2) | KindApply (t1, t2) | Annotate (t1, t2) ->
      let* _ = well_formed_type context t1
      and* _ = well_formed_type context t2
