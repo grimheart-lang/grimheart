@@ -458,7 +458,7 @@ let rec check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) : (Context.t,
       ) ->
      Ok gamma
   | Constructor _, _ ->
-     raise (Failure "Kind checking failed for arbitrary constructors.")
+     Error (FailedKindChecking (_T, _K))
   | _, Forall (a, _, _A) ->
      let a' = fresh_name () in
      scoped gamma (Quantified a')
