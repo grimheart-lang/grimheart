@@ -9,6 +9,7 @@ type e =
   | FailedChecking of unit Expr.t * Type.t
   | FailedInfererence of unit Expr.t * Type.t
   | FailedInstantiation of string * Type.t
+  | FailedKindChecking of Type.t * Type.t
   | IllFormedType of Type.t
   | UnknownVariable of string
   | ContextError of Context.e
@@ -430,3 +431,114 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) : (Type.t, e) result =
   Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
 
 let infer_type : _ Expr.t -> (Type.t, e) result = infer_type_with []
+
+let rec check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) : (Context.t, e) result =
+  let open Primitives in
+  match (_T, _K) with
+  | Constructor _, Constructor "Type"
+       when is_primitive_type _T ->
+     Ok gamma
+  | Constructor _, Apply (Apply (t_function', Constructor "Type"), Constructor "Type")
+       when Type.equal t_function t_function'
+         && is_primitive_type_type _T ->
+     Ok gamma
+  | Constructor "Function"
+  , Apply
+      ( Apply
+          ( Constructor "Function"
+          , Constructor "Type"
+          )
+      , Apply
+          ( Apply
+              ( Constructor "Function"
+              , Constructor "Type"
+              )
+          , Constructor "Type"
+          )
+      ) ->
+     Ok gamma
+  | Constructor _, _ ->
+     raise (Failure "Kind checking failed for arbitrary constructors.")
+  | _, Forall (a, _, _A) ->
+     let a' = fresh_name () in
+     scoped gamma (Quantified a')
+       (function gamma -> check_kind gamma _T (Type.substitute a (Variable a') _A))
+  | _ ->
+     let* (theta, _TK) = infer_kind gamma _T in
+     subtype theta (Context.apply theta _TK) (Context.apply theta _K)
+
+and infer_kind (gamma : Context.t) (_T : Type.t) : (Context.t * Type.t, e) result =
+  let open Primitives in
+  match _T with
+  | Constructor _ when is_primitive_type _T ->
+     Ok (gamma, t_type)
+  | Constructor _ when is_primitive_type_type _T ->
+     Ok (gamma, Sugar.fn t_type t_type)
+  | Constructor "Function" ->
+     Ok (gamma, Sugar.fn t_type (Sugar.fn t_type t_type))
+  | Constructor _ ->
+     raise (Failure "Kind synthesis failed for arbitrary constructors.")
+  | Apply (Apply (t_function', _A), _B)
+       when Type.equal t_function t_function' ->
+     let* gamma = check_kind gamma _A t_type in
+     let* gamma = check_kind gamma _B t_type in
+     Ok (gamma, t_type)
+  | Forall (a, _, _A) ->
+     let a' = fresh_name () in
+     infer_kind (Unsolved a' :: gamma) (Type.substitute a (Unsolved a') _A)
+  | Unsolved u ->
+     Ok (Unsolved u :: gamma, _T)
+     (* raise (Failure "Cannot synthesize unknowns in kinds.") *)
+  | Variable v ->
+     let find_variable : Element.t -> Type.t option = function
+       | Variable (v', t) when String.equal v v' -> Some t
+       | _ -> None
+     in
+     ( match List.find_map gamma ~f:find_variable with
+       | Some t ->
+          Ok (gamma, t)
+       | None ->
+          Error (UnknownVariable v)
+     )
+  | Apply (_A, _B) ->
+     let* (gamma, _K) = infer_kind gamma _A in
+     infer_apply_kind gamma _K _B
+  | Annotate (_A, _B) ->
+     let* gamma = check_kind gamma _A _B in Ok (gamma, _B)
+  | KindApply (_A, _B) ->
+     let* (gamma, _A_K) = infer_kind gamma _A in
+     match _A_K with
+     | Forall (a, Some k, t) ->
+        let* gamma = check_kind gamma _B k in
+        Ok (gamma, Type.substitute a _B t)
+     | _ ->
+        failwith "infer_kind: forall binder has no kind"
+
+and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
+  let open Primitives in
+  match _K with
+  | Forall (a, _, _K) ->
+     let a' = fresh_name () in
+     infer_apply_kind (Unsolved a' :: gamma) (Type.substitute a (Unsolved a') _K) _X
+  | Unsolved a ->
+     let a' = fresh_name () in
+     let b' = fresh_name () in
+     let* (gammaL, gammaR) =
+       match break_apart_at (Unsolved a) gamma with
+       | Ok (gammaL, gammaR) -> Ok (gammaL, gammaR)
+       | Error e -> Error (ContextError e)
+     in
+     let gammaM =
+       [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+       ; Element.Unsolved a'
+       ; Element.Unsolved b'
+       ]
+     in
+     let gamma = List.concat [gammaL;gammaM;gammaR] in
+     let* delta = check_kind gamma _X (Unsolved a') in
+     Ok (delta, Unsolved b')
+  | Apply (Apply (t_function', _A), _B)
+       when Type.equal t_function t_function' ->
+     let* delta = check_kind gamma _X _A in Ok (delta, _B)
+  | _ ->
+     raise (Failure "Impossible case in synth_app_kind")

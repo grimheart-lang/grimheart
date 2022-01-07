@@ -73,6 +73,12 @@ module Primitives = struct
   let t_array = Constructor "Array"
 
   let t_function = Constructor "Function"
+
+  let is_primitive_type n =
+    List.mem [t_type;t_char;t_string;t_int;t_float] n ~equal:equal
+
+  let is_primitive_type_type n =
+    List.mem [t_array] n ~equal:equal
 end
 
 module Sugar = struct
