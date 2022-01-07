@@ -86,10 +86,15 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e)
      let b' = fresh_name () in
      scoped gamma (Quantified b')
        (function gamma -> subtype gamma _A (Type.substitute b (Variable b') _B))
-  | Forall (a, _, _A), _ ->
+  | Forall (a, k, _A), _ ->
      let a' = fresh_name () in
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved a', k)
+       | None -> Unsolved a'
+     in
      scoped_unsolved gamma a'
-       (function gamma -> subtype gamma (Type.substitute a (Unsolved a') _A) _B)
+       (function gamma -> subtype gamma (Type.substitute a _T _A) _B)
   | Unsolved a, _
        when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables _B) a) ->
