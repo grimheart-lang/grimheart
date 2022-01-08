@@ -481,9 +481,15 @@ and infer_kind (gamma : Context.t) (_T : Type.t) : (Context.t * Type.t, e) resul
      let* gamma = check_kind gamma _A t_type in
      let* gamma = check_kind gamma _B t_type in
      Ok (gamma, t_type)
-  | Forall (a, _, _A) ->
+  | Forall (a, k, _A) ->
      let a' = fresh_name () in
-     infer_kind (Unsolved a' :: gamma) (Type.substitute a (Unsolved a') _A)
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved a', k)
+       | None -> Unsolved a'
+     in
+     let* (gamma, _K) = infer_kind (Unsolved a' :: gamma) (Type.substitute a _T _A)
+     in Ok (Context.discard_up_to (Unsolved a') gamma, _K)
   | Unsolved u ->
      let u' = fresh_name () in
      Ok (Unsolved u' :: gamma, (Type.substitute u (Unsolved u') _T))
