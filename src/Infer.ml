@@ -456,7 +456,7 @@ and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) : (Context.t, e) 
       ) ->
      Ok gamma
   | Constructor _, _ ->
-     Error (FailedKindChecking (_T, _K))
+     raise (Failure "todo: arbitrary constructors should look up the environment")
   | _, Forall (a, _, _A) ->
      let a' = fresh_name () in
      scoped gamma (Quantified a')
