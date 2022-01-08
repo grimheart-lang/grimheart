@@ -521,9 +521,14 @@ and infer_kind (gamma : Context.t) (_T : Type.t) : (Context.t * Type.t, e) resul
 and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   let open Primitives in
   match _K with
-  | Forall (a, _, _K) ->
+  | Forall (a, k, _K) ->
      let a' = fresh_name () in
-     infer_apply_kind (Unsolved a' :: gamma) (Type.substitute a (Unsolved a') _K) _X
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved a', k)
+       | None -> Unsolved a'
+     in
+     infer_apply_kind (Unsolved a' :: gamma) (Type.substitute a _T _K) _X
   | Unsolved a ->
      let a' = fresh_name () in
      let b' = fresh_name () in
