@@ -480,8 +480,8 @@ and infer_kind (gamma : Context.t) (_T : Type.t) : (Context.t * Type.t, e) resul
      let a' = fresh_name () in
      infer_kind (Unsolved a' :: gamma) (Type.substitute a (Unsolved a') _A)
   | Unsolved u ->
-     Ok (Unsolved u :: gamma, _T)
-     (* raise (Failure "Cannot synthesize unknowns in kinds.") *)
+     let u' = fresh_name () in
+     Ok (Unsolved u' :: gamma, (Type.substitute u (Unsolved u') _T))
   | Variable v ->
      let find_variable : Element.t -> Type.t option = function
        | Variable (v', t) when String.equal v v' -> Some t
