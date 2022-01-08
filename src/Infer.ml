@@ -82,10 +82,15 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e)
          && Type.equal t_function t_function2 ->
      let* theta = subtype gamma a2 a1 in
      subtype theta (Context.apply theta b1) (Context.apply theta b2)
-  | _, Forall (b, _, _B) ->
+  | _, Forall (b, k, _B) ->
      let b' = fresh_name () in
-     scoped gamma (Quantified b')
-       (function gamma -> subtype gamma _A (Type.substitute b (Variable b') _B))
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved b', k)
+       | None -> Unsolved b'
+     in
+     scoped_unsolved gamma b'
+       (function gamma -> subtype gamma _A (Type.substitute b _T _B))
   | Forall (a, k, _A), _ ->
      let a' = fresh_name () in
      let _T =
