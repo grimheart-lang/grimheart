@@ -208,19 +208,19 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) : (Context.t
     | Ok (gammaL, gammaR) -> Ok (gammaL, gammaR)
     | Error e -> Error (ContextError e)
   in
-  let solveLeft (t : Type.t) : (Context.t, e) result =
+  let solveRight (t : Type.t) : (Context.t, e) result =
     let* _ = well_formed_type gammaR _A in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
   match _A with
   | Constructor _ ->
-     solveLeft _A
+     solveRight _A
   | Variable _ ->
-     solveLeft _A
+     solveRight _A
   | Unsolved b ->
      ( match break_apart_at (Unsolved b) gammaL with
        | Error _ ->
-          solveLeft _A
+          solveRight _A
        | Ok (gammaLL, gammaLR) ->
           let gammaL =
             List.append gammaLL (Solved (b, Unsolved a) :: gammaLR)
@@ -250,7 +250,7 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) : (Context.t
   | Forall (b, _, _B) ->
      let b' = fresh_name () in
      scoped_unsolved gamma b'
-       (function gamma -> instantiateLeft gamma b' (Type.substitute b (Unsolved b') _B))
+       (function gamma -> instantiateRight gamma (Type.substitute b (Unsolved b') _B) b')
   | Apply (_A, _B) ->
      let a' = fresh_name () in
      let b' = fresh_name () in
