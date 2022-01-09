@@ -39,7 +39,7 @@ let rec apply (context : t) (t : Type.t) : Type.t =
      in
      solved_type
   | Forall (a, k, t) ->
-     Forall (a, k, apply context t)
+     Forall (a, Option.map ~f:(apply context) k, apply context t)
   | Apply (t1, t2) ->
      Apply (apply context t1, apply context t2)
   | KindApply (t1, t2) ->

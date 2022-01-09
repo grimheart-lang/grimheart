@@ -9,6 +9,7 @@ type e =
   | FailedChecking of unit Expr.t * Type.t
   | FailedInfererence of unit Expr.t * Type.t
   | FailedInstantiation of string * Type.t
+  | FailedKindChecking of Type.t * Type.t
   | IllFormedType of Type.t
   | UnknownVariable of string
   | ContextError of Context.e
@@ -42,8 +43,12 @@ let rec well_formed_type (context : Context.t) (t : Type.t) : (unit, e) Result.t
        | Some _ -> Ok ()
        | None -> Error (IllFormedType t)
      )
-  | Forall (a, _, t) ->
-     well_formed_type (Quantified a :: context) t
+  | Forall (a, k, t) ->
+     let* () = well_formed_type (Quantified a :: context) t in
+     ( match k with
+       | Some k -> well_formed_type context k
+       | None -> Ok ()
+     )
   | Apply (t1, t2) | KindApply (t1, t2) | Annotate (t1, t2) ->
      let* _ = well_formed_type context t1
      and* _ = well_formed_type context t2
@@ -77,14 +82,24 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e)
          && Type.equal t_function t_function2 ->
      let* theta = subtype gamma a2 a1 in
      subtype theta (Context.apply theta b1) (Context.apply theta b2)
-  | _, Forall (b, _, _B) ->
+  | _, Forall (b, k, _B) ->
      let b' = fresh_name () in
-     scoped gamma (Quantified b')
-       (function gamma -> subtype gamma _A (Type.substitute b (Variable b') _B))
-  | Forall (a, _, _A), _ ->
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved b', k)
+       | None -> Unsolved b'
+     in
+     scoped_unsolved gamma b'
+       (function gamma -> subtype gamma _A (Type.substitute b _T _B))
+  | Forall (a, k, _A), _ ->
      let a' = fresh_name () in
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved a', k)
+       | None -> Unsolved a'
+     in
      scoped_unsolved gamma a'
-       (function gamma -> subtype gamma (Type.substitute a (Unsolved a') _A) _B)
+       (function gamma -> subtype gamma (Type.substitute a _T _A) _B)
   | Unsolved a, _
        when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables _B) a) ->
@@ -95,8 +110,12 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e)
      instantiateRight gamma _A b
   | Apply (a1, b1), Apply (a2, b2) ->
      let* gamma = subtype gamma a1 a2 in subtype gamma b1 b2
-  | _A, Annotate (_B, _) | Annotate (_A, _), _B ->
-     subtype gamma _A _B
+  | _U, Annotate (_T, _K) ->
+     let* gamma = check_kind gamma _U _K in
+     subtype gamma _U _T
+  | Annotate (_T, _K), _U ->
+     let* gamma = check_kind gamma _U _K in
+     subtype gamma _T _U
   | _ ->
      Error (FailedSubtyping (_A, _B))
 
@@ -165,22 +184,11 @@ and instantiateLeft (gamma : Context.t) (a : string) (_A : Type.t) : (Context.t,
        instantiateLeft gamma a' _A
      in
      instantiateLeft theta b' (Context.apply theta _B)
-  | KindApply (_A, _B) ->
-     let a' = fresh_name () in
-     let b' = fresh_name () in
-     let gamma =
-       let gammaM =
-         [ Element.Solved (a, Type.KindApply (Type.Unsolved a', Type.Unsolved b'))
-         ; Element.Unsolved a'
-         ; Element.Unsolved b'
-         ]
-       in
-       List.concat [gammaL;gammaM;gammaR]
-     in
-     let* theta =
-       instantiateLeft gamma a' _A
-     in
-     instantiateLeft theta b' (Context.apply theta _B)
+  | KindApply (_, _) ->
+     (* KindApply isn't user-facing, so we shouldn't ever handle it when
+        performing instantiation.
+      *)
+     raise (Failure "instantiateLeft: called with KindApply")
   | Annotate (_A, _B) ->
      let a' = fresh_name () in
      let b' = fresh_name () in
@@ -264,22 +272,11 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) : (Context.t
        instantiateRight gamma _A a'
      in
      instantiateRight theta (Context.apply theta _B) b'
-  | KindApply (_A, _B) ->
-     let a' = fresh_name () in
-     let b' = fresh_name () in
-     let gamma =
-       let gammaM =
-         [ Element.Solved (a, Type.KindApply (Type.Unsolved a', Type.Unsolved b'))
-         ; Element.Unsolved a'
-         ; Element.Unsolved b'
-         ]
-       in
-       List.concat [gammaL;gammaM;gammaR]
-     in
-     let* theta =
-       instantiateRight gamma _A a'
-     in
-     instantiateRight theta (Context.apply theta _B) b'
+  | KindApply (_, _) ->
+     (* KindApply isn't user-facing, so we shouldn't ever handle it when
+        performing instantiation.
+      *)
+     raise (Failure "instantiateRight: called with KindApply")
   | Annotate (_A, _B) ->
      let a' = fresh_name () in
      let b' = fresh_name () in
@@ -410,6 +407,128 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) : (Context.t * 
      Ok (delta, _B)
   | _ ->
      Error (FailedInfererence (e, _A))
+
+and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) : (Context.t, e) result =
+  let open Primitives in
+  match (_T, _K) with
+  | Constructor _, Constructor "Type"
+       when is_primitive_type _T ->
+     Ok gamma
+  | Constructor _, Apply (Apply (t_function', Constructor "Type"), Constructor "Type")
+       when Type.equal t_function t_function'
+         && is_primitive_type_type _T ->
+     Ok gamma
+  | Constructor "Function"
+  , Apply
+      ( Apply
+          ( Constructor "Function"
+          , Constructor "Type"
+          )
+      , Apply
+          ( Apply
+              ( Constructor "Function"
+              , Constructor "Type"
+              )
+          , Constructor "Type"
+          )
+      ) ->
+     Ok gamma
+  | Constructor _, _ ->
+     raise (Failure "todo: arbitrary constructors should look up the environment")
+  | _, Forall (a, _, _A) ->
+     let a' = fresh_name () in
+     scoped gamma (Quantified a')
+       (function gamma -> check_kind gamma _T (Type.substitute a (Variable a') _A))
+  | _ ->
+     let* (theta, _TK) = infer_kind gamma _T in
+     subtype theta (Context.apply theta _TK) (Context.apply theta _K)
+
+and infer_kind (gamma : Context.t) (_T : Type.t) : (Context.t * Type.t, e) result =
+  let open Primitives in
+  match _T with
+  | Constructor _ when is_primitive_type _T ->
+     Ok (gamma, t_type)
+  | Constructor _ when is_primitive_type_type _T ->
+     Ok (gamma, Sugar.fn t_type t_type)
+  | Constructor "Function" ->
+     Ok (gamma, Sugar.fn t_type (Sugar.fn t_type t_type))
+  | Constructor _ ->
+     raise (Failure "Kind synthesis failed for arbitrary constructors.")
+  | Apply (Apply (t_function', _A), _B)
+       when Type.equal t_function t_function' ->
+     let* gamma = check_kind gamma _A t_type in
+     let* gamma = check_kind gamma _B t_type in
+     Ok (gamma, t_type)
+  | Forall (a, k, _A) ->
+     let a' = fresh_name () in
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved a', k)
+       | None -> Unsolved a'
+     in
+     let* (gamma, _K) = infer_kind (Unsolved a' :: gamma) (Type.substitute a _T _A)
+     in Ok (Context.discard_up_to (Unsolved a') gamma, _K)
+  | Unsolved u ->
+     let u' = fresh_name () in
+     Ok (Unsolved u' :: gamma, (Type.substitute u (Unsolved u') _T))
+  | Variable v ->
+     let find_variable : Element.t -> Type.t option = function
+       | Variable (v', t) when String.equal v v' -> Some t
+       | _ -> None
+     in
+     ( match List.find_map gamma ~f:find_variable with
+       | Some t ->
+          Ok (gamma, t)
+       | None ->
+          Error (UnknownVariable v)
+     )
+  | Apply (_A, _B) ->
+     let* (gamma, _K) = infer_kind gamma _A in
+     infer_apply_kind gamma _K _B
+  | Annotate (_A, _B) ->
+     let* gamma = check_kind gamma _A _B in Ok (gamma, _B)
+  | KindApply (_A, _B) ->
+     let* (gamma, _A_K) = infer_kind gamma _A in
+     match _A_K with
+     | Forall (a, Some k, t) ->
+        let* gamma = check_kind gamma _B k in
+        Ok (gamma, Type.substitute a _B t)
+     | _ ->
+        failwith "infer_kind: forall binder has no kind"
+
+and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
+  let open Primitives in
+  match _K with
+  | Forall (a, k, _K) ->
+     let a' = fresh_name () in
+     let _T =
+       match k with
+       | Some k -> Annotate (Unsolved a', k)
+       | None -> Unsolved a'
+     in
+     infer_apply_kind (Unsolved a' :: gamma) (Type.substitute a _T _K) _X
+  | Unsolved a ->
+     let a' = fresh_name () in
+     let b' = fresh_name () in
+     let* (gammaL, gammaR) =
+       match break_apart_at (Unsolved a) gamma with
+       | Ok (gammaL, gammaR) -> Ok (gammaL, gammaR)
+       | Error e -> Error (ContextError e)
+     in
+     let gammaM =
+       [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+       ; Element.Unsolved a'
+       ; Element.Unsolved b'
+       ]
+     in
+     let gamma = List.concat [gammaL;gammaM;gammaR] in
+     let* delta = check_kind gamma _X (Unsolved a') in
+     Ok (delta, Unsolved b')
+  | Apply (Apply (t_function', _A), _B)
+       when Type.equal t_function t_function' ->
+     let* delta = check_kind gamma _X _A in Ok (delta, _B)
+  | _ ->
+     raise (Failure "Impossible case in synth_app_kind")
 
 let infer_type_with (context : Context.t) (e : _ Expr.t) : (Type.t, e) result =
   let* (delta, poly_type) = infer context e in
