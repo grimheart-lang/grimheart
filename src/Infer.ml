@@ -184,22 +184,11 @@ and instantiateLeft (gamma : Context.t) (a : string) (_A : Type.t) : (Context.t,
        instantiateLeft gamma a' _A
      in
      instantiateLeft theta b' (Context.apply theta _B)
-  | KindApply (_A, _B) ->
-     let a' = fresh_name () in
-     let b' = fresh_name () in
-     let gamma =
-       let gammaM =
-         [ Element.Solved (a, Type.KindApply (Type.Unsolved a', Type.Unsolved b'))
-         ; Element.Unsolved a'
-         ; Element.Unsolved b'
-         ]
-       in
-       List.concat [gammaL;gammaM;gammaR]
-     in
-     let* theta =
-       instantiateLeft gamma a' _A
-     in
-     instantiateLeft theta b' (Context.apply theta _B)
+  | KindApply (_, _) ->
+     (* KindApply isn't user-facing, so we shouldn't ever handle it when
+        performing instantiation.
+      *)
+     raise (Failure "instantiateLeft: called with KindApply")
   | Annotate (_A, _B) ->
      let a' = fresh_name () in
      let b' = fresh_name () in
@@ -283,22 +272,11 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) : (Context.t
        instantiateRight gamma _A a'
      in
      instantiateRight theta (Context.apply theta _B) b'
-  | KindApply (_A, _B) ->
-     let a' = fresh_name () in
-     let b' = fresh_name () in
-     let gamma =
-       let gammaM =
-         [ Element.Solved (a, Type.KindApply (Type.Unsolved a', Type.Unsolved b'))
-         ; Element.Unsolved a'
-         ; Element.Unsolved b'
-         ]
-       in
-       List.concat [gammaL;gammaM;gammaR]
-     in
-     let* theta =
-       instantiateRight gamma _A a'
-     in
-     instantiateRight theta (Context.apply theta _B) b'
+  | KindApply (_, _) ->
+     (* KindApply isn't user-facing, so we shouldn't ever handle it when
+        performing instantiation.
+      *)
+     raise (Failure "instantiateRight: called with KindApply")
   | Annotate (_A, _B) ->
      let a' = fresh_name () in
      let b' = fresh_name () in
