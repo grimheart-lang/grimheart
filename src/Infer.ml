@@ -62,6 +62,11 @@ let scoped_unsolved context unsolved action =
   scoped context (Element.Marker unsolved)
     (function context -> action (Element.Unsolved unsolved :: context))
 
+let maybe_annotate (_T : Type.t) =
+  function
+  | Some k -> Annotate (_T, k)
+  | None -> _T
+
 let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e) result =
   let open Primitives in
   match (_A, _B) with
@@ -84,22 +89,12 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e)
      subtype theta (Context.apply theta b1) (Context.apply theta b2)
   | _, Forall (b, k, _B) ->
      let b' = fresh_name () in
-     let _T =
-       match k with
-       | Some k -> Annotate (Unsolved b', k)
-       | None -> Unsolved b'
-     in
      scoped_unsolved gamma b'
-       (function gamma -> subtype gamma _A (Type.substitute b _T _B))
+       (function gamma -> subtype gamma _A (Type.substitute b (maybe_annotate (Unsolved b') k) _B))
   | Forall (a, k, _A), _ ->
      let a' = fresh_name () in
-     let _T =
-       match k with
-       | Some k -> Annotate (Unsolved a', k)
-       | None -> Unsolved a'
-     in
      scoped_unsolved gamma a'
-       (function gamma -> subtype gamma (Type.substitute a _T _A) _B)
+       (function gamma -> subtype gamma (Type.substitute a (maybe_annotate (Unsolved a') k) _A) _B)
   | Unsolved a, _
        when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables _B) a) ->
@@ -461,12 +456,7 @@ and infer_kind (gamma : Context.t) (_T : Type.t) : (Context.t * Type.t, e) resul
      Ok (gamma, t_type)
   | Forall (a, k, _A) ->
      let a' = fresh_name () in
-     let _T =
-       match k with
-       | Some k -> Annotate (Unsolved a', k)
-       | None -> Unsolved a'
-     in
-     let* (gamma, _K) = infer_kind (Unsolved a' :: gamma) (Type.substitute a _T _A)
+     let* (gamma, _K) = infer_kind (Unsolved a' :: gamma) (Type.substitute a (maybe_annotate (Unsolved a') k) _A)
      in Ok (Context.discard_up_to (Unsolved a') gamma, _K)
   | Unsolved u ->
      let u' = fresh_name () in
@@ -501,12 +491,7 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   match _K with
   | Forall (a, k, _K) ->
      let a' = fresh_name () in
-     let _T =
-       match k with
-       | Some k -> Annotate (Unsolved a', k)
-       | None -> Unsolved a'
-     in
-     infer_apply_kind (Unsolved a' :: gamma) (Type.substitute a _T _K) _X
+     infer_apply_kind (Unsolved a' :: gamma) (Type.substitute a (maybe_annotate (Unsolved a') k) _K) _X
   | Unsolved a ->
      let a' = fresh_name () in
      let b' = fresh_name () in
