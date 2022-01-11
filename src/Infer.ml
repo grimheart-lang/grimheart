@@ -16,9 +16,9 @@ module Error = struct
   [@@deriving eq]
 end
 
-let ( let* ) = Result.( >>= )
+let ( let* ) : (_, Error.t) result -> _ = Result.( >>= )
 
-let ( and* ) = Result.Let_syntax.Let_syntax.both
+let ( and* ) : (_, Error.t) result -> _ = Result.Let_syntax.Let_syntax.both
 
 (** [fresh_name ()] generates a unique name to avoid collisions. *)
 let fresh_name : unit -> string =
@@ -134,7 +134,7 @@ and instantiateLeft (gamma : Context.t) (a : string) (_A : Type.t) :
     | Ok (gammaL, gammaR) ->
         Ok (gammaL, gammaR)
     | Error e ->
-        Error (Error.ContextError e)
+        Error (ContextError e)
   in
   let solveLeft (t : Type.t) : (Context.t, Error.t) result =
     let* _ = well_formed_type gammaR _A in
@@ -209,7 +209,7 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
     | Ok (gammaL, gammaR) ->
         Ok (gammaL, gammaR)
     | Error e ->
-        Error (Error.ContextError e)
+        Error (ContextError e)
   in
   let solveRight (t : Type.t) : (Context.t, Error.t) result =
     let* _ = well_formed_type gammaR _A in
@@ -391,7 +391,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
         | Ok (gammaL, gammaR) ->
             Ok (gammaL, gammaR)
         | Error e ->
-            Error (Error.ContextError e)
+            Error (ContextError e)
       in
       let gammaM =
         [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
@@ -505,7 +505,7 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
         | Ok (gammaL, gammaR) ->
             Ok (gammaL, gammaR)
         | Error e ->
-            Error (Error.ContextError e)
+            Error (ContextError e)
       in
       let gammaM =
         [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
