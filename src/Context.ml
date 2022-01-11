@@ -13,7 +13,9 @@ end
 
 type t = Element.t list
 
-type e = FailedToBreakApart [@@deriving eq]
+module Error = struct
+  type t = FailedToBreakApart [@@deriving eq]
+end
 
 let rec apply (context : t) (t : Type.t) : Type.t =
   let open Type in
@@ -60,10 +62,11 @@ let discard_up_to (element : Element.t) (context : t) : t =
   in
   aux context
 
-let break_apart_at (element : Element.t) (context : t) : (t * t, e) Result.t =
+let break_apart_at (element : Element.t) (context : t) : (t * t, Error.t) result
+    =
   let rec aux collected = function
     | [] ->
-        Error FailedToBreakApart
+        Error Error.FailedToBreakApart
     | current :: rest ->
         if Element.equal element current then Ok (List.rev collected, rest)
         else aux (current :: collected) rest
