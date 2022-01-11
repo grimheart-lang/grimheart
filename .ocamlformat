@@ -1,0 +1,7 @@
+break-cases = fit
+if-then-else = keyword-first
+line-endings = lf
+margin = 80
+parse-docstrings = true
+profile = ocamlformat
+wrap-comments = true
