@@ -11,53 +11,40 @@ type t =
   | Apply of t * t
   | KindApply of t * t
   | Annotate of t * t
-  [@@deriving eq]
+[@@deriving eq]
 
 (** [substitute a r t] takes all occurences of the variable a inside of a type t
     and replaces them with the type r. This is essentially just alpha conversion
-    for types.
-  *)
+    for types. *)
 let rec substitute (a : string) (r : t) (t : t) : t =
   match t with
-  | Constructor _ -> t
+  | Constructor _ ->
+      t
   | Variable a' | Unsolved a' ->
-     if String.equal a a' then r else t
+      if String.equal a a' then r else t
   | Forall (a', k, t) ->
-     if String.equal a a' then t else Forall (a', k, substitute a r t)
+      if String.equal a a' then t else Forall (a', k, substitute a r t)
   | Apply (t1, t2) ->
-     Apply
-       ( substitute a r t1
-       , substitute a r t2
-       )
+      Apply (substitute a r t1, substitute a r t2)
   | KindApply (t1, t2) ->
-     KindApply
-       ( substitute a r t1
-       , substitute a r t2
-       )
+      KindApply (substitute a r t1, substitute a r t2)
   | Annotate (t1, t2) ->
-     Annotate
-       ( substitute a r t1
-       , substitute a r t2
-       )
+      Annotate (substitute a r t1, substitute a r t2)
 
 (** [is_mono_type t] determines whether some type t is a monotype. *)
-let is_mono_type (t : t) : bool =
-  match t with
-  | Forall _ -> false
-  | _ -> true
+let is_mono_type (t : t) : bool = match t with Forall _ -> false | _ -> true
 
-(** [free_type_variables t] determines the free type variables in some type t.
-  *)
+(** [free_type_variables t] determines the free type variables in some type t. *)
 let rec free_type_variables (t : t) : type_vars_t =
   match t with
   | Constructor _ ->
-     Set.empty (module String)
+      Set.empty (module String)
   | Variable v | Unsolved v ->
-     Set.singleton (module String) v
+      Set.singleton (module String) v
   | Forall (a, _, t) ->
-     Set.remove (free_type_variables t) a
+      Set.remove (free_type_variables t) a
   | Apply (t1, t2) | KindApply (t1, t2) | Annotate (t1, t2) ->
-     Set.union (free_type_variables t1) (free_type_variables t2)
+      Set.union (free_type_variables t1) (free_type_variables t2)
 
 module Primitives = struct
   let t_type = Constructor "Type"
@@ -75,10 +62,9 @@ module Primitives = struct
   let t_function = Constructor "Function"
 
   let is_primitive_type n =
-    List.mem [t_type;t_char;t_string;t_int;t_float] n ~equal:equal
+    List.mem [t_type; t_char; t_string; t_int; t_float] n ~equal
 
-  let is_primitive_type_type n =
-    List.mem [t_array] n ~equal:equal
+  let is_primitive_type_type n = List.mem [t_array] n ~equal
 end
 
 module Sugar = struct

@@ -1,4 +1,4 @@
-(** Literals in the language.  *)
+(** Literals in the language. *)
 
 type 'a t =
   | Char of char
@@ -7,4 +7,4 @@ type 'a t =
   | Float of float
   | Array of 'a list
   | Object of string * 'a list
-  [@@deriving eq]
+[@@deriving eq]
