@@ -13,9 +13,6 @@ type t =
   | Annotate of t * t
 [@@deriving eq]
 
-(** [substitute a r t] takes all occurences of the variable a inside of a type t
-    and replaces them with the type r. This is essentially just alpha conversion
-    for types. *)
 let rec substitute (a : string) (r : t) (t : t) : t =
   match t with
   | Constructor _ ->
@@ -31,10 +28,8 @@ let rec substitute (a : string) (r : t) (t : t) : t =
   | Annotate (t1, t2) ->
       Annotate (substitute a r t1, substitute a r t2)
 
-(** [is_mono_type t] determines whether some type t is a monotype. *)
 let is_mono_type (t : t) : bool = match t with Forall _ -> false | _ -> true
 
-(** [free_type_variables t] determines the free type variables in some type t. *)
 let rec free_type_variables (t : t) : type_vars_t =
   match t with
   | Constructor _ ->
