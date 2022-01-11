@@ -25,7 +25,8 @@ let fresh_name : unit -> string =
     "t" ^ string_of_int !i
 
 (** [well_formed_type context _T] determines the well-formedness of some type _T
-    given the provided context.
+    with respect to the context. This function is used to partially verify the
+    correctness of the algorithmic context.
  *)
 let rec well_formed_type (context : Context.t) (_T : Type.t) : (unit, e) Result.t =
   match _T with
@@ -52,15 +53,15 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) : (unit, e) Result.
        | Some _ -> Ok ()
        | None -> Error (IllFormedType _T)
      )
-  | Forall (a, _K, _T) ->
-     let* () = well_formed_type (Quantified (a, _K) :: context) _T in
+  | Forall (a, _K, _A) ->
+     let* () = well_formed_type (Quantified (a, _K) :: context) _A in
      ( match _K with
        | Some _K -> well_formed_type context _K
        | None -> Ok ()
      )
-  | Apply (t1, t2) | KindApply (t1, t2) | Annotate (t1, t2) ->
-     let* _ = well_formed_type context t1
-     and* _ = well_formed_type context t2
+  | Apply (_A, _B) | KindApply (_A, _B) | Annotate (_A, _B) ->
+     let* _ = well_formed_type context _A
+     and* _ = well_formed_type context _B
      in Ok ()
 
 (** [scoped context element action] runs an algorithmic typing action inside by
