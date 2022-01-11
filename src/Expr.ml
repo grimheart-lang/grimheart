@@ -1,5 +1,3 @@
-(** Expressions in the language. *)
-
 type 'a t =
   | Literal of 'a t Literal.t
   | Variable of string
@@ -9,8 +7,6 @@ type 'a t =
   | Let of string * Type.t option * 'a t * 'a t
 [@@deriving eq]
 
-(** [substitute a r e] takes all occurences of the variable a inside of an
-    expression e and replaces them with an expression r. *)
 let rec substitute (a : string) (r : _ t) (e : _ t) : _ t =
   match e with
   | Literal _ ->
