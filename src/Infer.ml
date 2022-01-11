@@ -55,19 +55,29 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
       and* _ = well_formed_type context _B in
       Ok ()
 
-(** [scoped context element action] runs an algorithmic typing action inside by
-    first appending the element to the context, before popping the element. *)
-let scoped context element action =
+let scoped (context : Context.t) (element : Element.t)
+    (action : Context.t -> (Context.t, Error.t) result) :
+    (Context.t, Error.t) result =
   let* context' = action (element :: context) in
   Ok (Context.discard_up_to element context')
 
-(** [scoped_unsolved context unsolved action] is similar to scoped, except it
-    also appends a marker element along with the unsolved element. *)
-let scoped_unsolved context unsolved action =
-  scoped context (Element.Marker unsolved) (fun context ->
-      action (Element.Unsolved unsolved :: context))
+let scoped' (context : Context.t) (element : Element.t)
+    (action : Context.t -> (Context.t * 'a, Error.t) result) :
+    (Context.t * 'a, Error.t) result =
+  let* context', result = action (element :: context) in
+  Ok (Context.discard_up_to element context', result)
 
-(** [annotate_type _T _K] optionally annotates some type _T with a kind _K. *)
+let scoped_unsolved (context : Context.t) (unsolved : string)
+    (action : Context.t -> ('a, Error.t) result) : ('a, Error.t) result =
+  scoped context (Marker unsolved) (fun context ->
+      action (Unsolved unsolved :: context))
+
+let scoped_unsolved' (context : Context.t) (unsolved : string)
+    (action : Context.t -> (Context.t * 'a, Error.t) result) :
+    (Context.t * 'a, Error.t) result =
+  scoped' context (Marker unsolved) (fun context ->
+      action (Unsolved unsolved :: context))
+
 let annotate_type (_T : Type.t) (_K : Type.t option) =
   match _K with Some _K -> Annotate (_T, _K) | None -> _T
 
@@ -429,11 +439,10 @@ and infer_kind (gamma : Context.t) (_T : Type.t) :
       let* gamma = check_kind gamma _A t_type in
       let* gamma = check_kind gamma _B t_type in
       Ok (gamma, t_type)
-  | Forall (a, _K', _A) ->
+  | Forall (a, _K, _A) ->
       let a' = fresh_name () in
-      let _A = Type.substitute a (annotate_type (Unsolved a') _K') _A in
-      let* gamma, _K = infer_kind (Unsolved a' :: gamma) _A in
-      Ok (Context.discard_up_to (Unsolved a') gamma, _K)
+      let _A = Type.substitute a (annotate_type (Unsolved a') _K) _A in
+      scoped_unsolved' gamma a' (fun gamma -> infer_kind gamma _A)
   | Unsolved u ->
       let u' = fresh_name () in
       Ok (Unsolved u' :: gamma, Type.substitute u (Unsolved u') _T)
