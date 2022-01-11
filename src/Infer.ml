@@ -108,14 +108,14 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) : (Context.t, e)
      subtype theta (Context.apply theta b1) (Context.apply theta b2)
   | _, Forall (b, _K, _B) ->
      let b' = fresh_name () in
-     let _T = annotate_type (Variable b') _K in
+     let _B = Type.substitute b (annotate_type (Variable b') _K) _B in
      scoped gamma (Quantified (b', _K))
-       (fun gamma -> subtype gamma _A (Type.substitute b _T _B))
+       (fun gamma -> subtype gamma _A _B)
   | Forall (a, _K, _A), _ ->
      let a' = fresh_name () in
-     let _T = annotate_type (Unsolved a') _K in
+     let _A = Type.substitute a (annotate_type (Unsolved a') _K) _A in
      scoped_unsolved gamma a'
-       (fun gamma -> subtype gamma (Type.substitute a _T _A) _B)
+       (fun gamma -> subtype gamma _A _B)
   | Unsolved a, _
        when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables _B) a) ->
@@ -270,9 +270,9 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) : (Context.t
      instantiateRight theta (Context.apply theta _B) b'
   | Forall (b, _K, _B) ->
      let b' = fresh_name () in
-     let _T = annotate_type (Unsolved b') _K in
+     let _B = Type.substitute b (annotate_type (Unsolved b') _K) _B in
      scoped_unsolved gamma b'
-       (fun gamma -> instantiateRight gamma (Type.substitute b _T _B) b')
+       (fun gamma -> instantiateRight gamma _B b')
   | Apply (_A, _B) ->
      let a' = fresh_name () in
      let b' = fresh_name () in
@@ -335,9 +335,9 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A: Type.t) : (Context.t, e) resul
        (function gamma -> check gamma (Expr.substitute n (Variable n') e)_A2)
   | _, Forall (a, _K, _A) ->
      let a' = fresh_name () in
-     let _T = annotate_type (Variable a') _K in
+     let _A = Type.substitute a (annotate_type (Variable a') _K) _A in
      scoped gamma (Quantified (a', _K))
-       (function gamma -> check gamma e (Type.substitute a _T _A))
+       (function gamma -> check gamma e _A)
   | _ ->
      let* (theta, _A') = infer gamma e in
      subtype theta (Context.apply theta _A') (Context.apply theta _A)
@@ -401,8 +401,8 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) : (Context.t * 
   match _A with
   | Forall (a, _K, _A) ->
      let a' = fresh_name () in
-     let _T = annotate_type (Unsolved a') _K in
-     infer_apply (Unsolved a' :: gamma) (Type.substitute a _T _A) e
+     let _A = Type.substitute a (annotate_type (Unsolved a') _K) _A in
+     infer_apply (Unsolved a' :: gamma) _A e
   | Unsolved a ->
      let a' = fresh_name () in
      let b' = fresh_name () in
@@ -456,9 +456,9 @@ and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) : (Context.t, e) 
      raise (Failure "todo: arbitrary constructors should look up the environment")
   | _, Forall (a, _K', _A) ->
      let a' = fresh_name () in
-     let _T' = annotate_type (Variable a') _K' in
+     let _A = Type.substitute a (annotate_type (Variable a') _K') _A in
      scoped gamma (Quantified (a', _K'))
-       (function gamma -> check_kind gamma _T (Type.substitute a _T' _A))
+       (function gamma -> check_kind gamma _T _A)
   | _ ->
      let* (theta, _TK) = infer_kind gamma _T in
      subtype theta (Context.apply theta _TK) (Context.apply theta _K)
@@ -481,8 +481,8 @@ and infer_kind (gamma : Context.t) (_T : Type.t) : (Context.t * Type.t, e) resul
      Ok (gamma, t_type)
   | Forall (a, _K', _A) ->
      let a' = fresh_name () in
-     let _T' = annotate_type (Unsolved a') _K' in
-     let* (gamma, _K) = infer_kind (Unsolved a' :: gamma) (Type.substitute a _T' _A)
+     let _A = Type.substitute a (annotate_type (Unsolved a') _K') _A in
+     let* (gamma, _K) = infer_kind (Unsolved a' :: gamma) _A
      in Ok (Context.discard_up_to (Unsolved a') gamma, _K)
   | Unsolved u ->
      let u' = fresh_name () in
@@ -517,8 +517,8 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   match _K with
   | Forall (a, _K', _K) ->
      let a' = fresh_name () in
-     let _T' = annotate_type (Unsolved a') _K' in
-     infer_apply_kind (Unsolved a' :: gamma) (Type.substitute a _T' _K) _X
+     let _K = Type.substitute a (annotate_type (Unsolved a') _K') _K in
+     infer_apply_kind (Unsolved a' :: gamma) _K _X
   | Unsolved a ->
      let a' = fresh_name () in
      let b' = fresh_name () in
