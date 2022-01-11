@@ -27,9 +27,6 @@ let fresh_name : unit -> string =
     incr i ;
     "t" ^ string_of_int !i
 
-(** [well_formed_type context _T] determines the well-formedness of some type _T
-    with respect to the context. This function is used to partially verify the
-    correctness of the algorithmic context. *)
 let rec well_formed_type (context : Context.t) (_T : Type.t) :
     (unit, Error.t) result =
   match _T with
@@ -77,7 +74,6 @@ let scoped_unsolved context unsolved action =
 let annotate_type (_T : Type.t) (_K : Type.t option) =
   match _K with Some _K -> Annotate (_T, _K) | None -> _T
 
-(** [subtype _A _B] checks the subtyping relationship between _A and _B. *)
 let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -127,8 +123,6 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | _ ->
       Error (FailedSubtyping (_A, _B))
 
-(** [instantiateLeft a _A] instantiates the unsolved variable a with _B, such
-    that a is a subtype of _B. *)
 and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -204,8 +198,6 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
       let* theta = instantiateLeft gamma a' _A in
       instantiateLeft theta b' (Context.apply theta _B)
 
-(** [instantiateRight _A b] instantiates the unsolved variable b with _A, such
-    that _A is a subtype of b. *)
 and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -283,7 +275,6 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
       let* theta = instantiateRight gamma _A a' in
       instantiateRight theta (Context.apply theta _B) b'
 
-(** [check gamma e _A] checks that the expression e has the type _A. *)
 and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -314,7 +305,6 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       let* theta, _A' = infer gamma e in
       subtype theta (Context.apply theta _A') (Context.apply theta _A)
 
-(** [infer gamma e] infers the type of an expression e. *)
 and infer (gamma : Context.t) (e : _ Expr.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
@@ -382,8 +372,6 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
       let v' = fresh_name () in
       infer (Variable (v', t) :: gamma) (Expr.substitute v (Variable v') e2)
 
-(** [infer_apply gamma _A e] infers the type of the application of some type _A
-    to an expression e. *)
 and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
@@ -417,7 +405,6 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
   | _ ->
       Error (FailedInfererence (e, _A))
 
-(** [check_kind gamma _T _K] checks whether some type _T has a kind _K. *)
 and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -448,7 +435,6 @@ and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
       let* theta, _TK = infer_kind gamma _T in
       subtype theta (Context.apply theta _TK) (Context.apply theta _K)
 
-(** [infer_kind gamma _T] infers the kind of some type _T. *)
 and infer_kind (gamma : Context.t) (_T : Type.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
@@ -501,8 +487,6 @@ and infer_kind (gamma : Context.t) (_T : Type.t) :
       | _ ->
           failwith "infer_kind: forall binder has no kind" )
 
-(** [infer_apply_kind gamma _K _X] infers the type of the application of the
-    kind _K to some type _X. *)
 and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   let open Primitives in
   match _K with
@@ -535,8 +519,6 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   | _ ->
       raise (Failure "Impossible case in synth_app_kind")
 
-(** [infer_type_with context e] infers the type of some expression e using the
-    provided context. *)
 let infer_type_with (context : Context.t) (e : _ Expr.t) :
     (Type.t, Error.t) result =
   let* delta, poly_type = infer context e in
@@ -556,5 +538,4 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
   in
   Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
 
-(** [infer_type e] infers the type of some expression with an empty context. *)
 let infer_type : _ Expr.t -> (Type.t, Error.t) result = infer_type_with []
