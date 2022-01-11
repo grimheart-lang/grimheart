@@ -20,7 +20,7 @@ let (and*) = Result.Let_syntax.Let_syntax.both
 (** [fresh_name ()] generates a unique name to avoid collisions. *)
 let fresh_name : unit -> string =
   let i = ref (-1) in
-  function () ->
+  fun () ->
     incr i;
     "t" ^ string_of_int !i
 
@@ -76,7 +76,7 @@ let scoped context element action =
  *)
 let scoped_unsolved context unsolved action =
   scoped context (Element.Marker unsolved)
-    (function context -> action (Element.Unsolved unsolved :: context))
+    (fun context -> action (Element.Unsolved unsolved :: context))
 
 (** [annotate_type _T _K] optionally annotates some type _T with a kind _K. *)
 let annotate_type (_T : Type.t) (_K : Type.t option) =
@@ -332,12 +332,12 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A: Type.t) : (Context.t, e) resul
        when Type.equal t_function t_function' ->
      let n' = fresh_name () in
      scoped gamma (Variable (n', _A1))
-       (function gamma -> check gamma (Expr.substitute n (Variable n') e)_A2)
+       (fun gamma -> check gamma (Expr.substitute n (Variable n') e)_A2)
   | _, Forall (a, _K, _A) ->
      let a' = fresh_name () in
      let _A = Type.substitute a (annotate_type (Variable a') _K) _A in
      scoped gamma (Quantified (a', _K))
-       (function gamma -> check gamma e _A)
+       (fun gamma -> check gamma e _A)
   | _ ->
      let* (theta, _A') = infer gamma e in
      subtype theta (Context.apply theta _A') (Context.apply theta _A)
@@ -375,7 +375,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) : (Context.t * Type.t, e) result =
      let* delta =
        let v' = fresh_name () in
        scoped (Unsolved b' :: Unsolved a' :: gamma) (Variable (v', Unsolved a'))
-         (function gamma -> check gamma (Expr.substitute v (Variable v') e) (Unsolved b'))
+         (fun gamma -> check gamma (Expr.substitute v (Variable v') e) (Unsolved b'))
      in
      Ok (delta, Sugar.fn (Unsolved a') (Unsolved b'))
   | Apply (f, x) ->
@@ -546,7 +546,7 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) : (Type.t, e) result =
   let* (delta, poly_type) = infer context e in
   let fresh_variable =
     let i = ref (-1) in
-    function () ->
+    fun () ->
       incr i;
       String.of_char (Char.of_int_exn (97 + (!i mod 26)))
   in
