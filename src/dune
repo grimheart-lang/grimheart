@@ -2,4 +2,5 @@
  (name sulfur)
  (public_name sulfur)
  (libraries core_kernel dolog)
- (preprocess (pps ppx_deriving.eq)))
+ (preprocess
+  (pps ppx_deriving.eq)))
