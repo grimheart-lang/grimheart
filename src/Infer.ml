@@ -17,26 +17,30 @@ type e =
 let (let*) = Result.(>>=)
 let (and*) = Result.Let_syntax.Let_syntax.both
 
+(** [fresh_name ()] generates a unique name to avoid collisions. *)
 let fresh_name : unit -> string =
   let i = ref (-1) in
   function () ->
     incr i;
     "t" ^ string_of_int !i
 
-let rec well_formed_type (context : Context.t) (t : Type.t) : (unit, e) Result.t =
-  match t with
+(** [well_formed_type context _T] determines the well-formedness of some type _T
+    given the provided context.
+ *)
+let rec well_formed_type (context : Context.t) (_T : Type.t) : (unit, e) Result.t =
+  match _T with
   | Constructor _ ->
      Ok ()
   | Variable v ->
      if Context.mem context (Quantified (v, None)) then
        Ok ()
      else
-       Error (IllFormedType t)
+       Error (IllFormedType _T)
   | Annotate (Variable v, k) ->
      if Context.mem context (Quantified (v, Some k)) then
        Ok ()
      else
-       Error (IllFormedType t)
+       Error (IllFormedType _T)
   | Unsolved u ->
      let predicate : Element.t -> bool = function
        | Unsolved u' | Solved (u', _) when String.equal u u' ->
@@ -46,7 +50,7 @@ let rec well_formed_type (context : Context.t) (t : Type.t) : (unit, e) Result.t
      in
      ( match List.find context ~f:predicate with
        | Some _ -> Ok ()
-       | None -> Error (IllFormedType t)
+       | None -> Error (IllFormedType _T)
      )
   | Forall (a, _K, _T) ->
      let* () = well_formed_type (Quantified (a, _K) :: context) _T in
@@ -59,14 +63,21 @@ let rec well_formed_type (context : Context.t) (t : Type.t) : (unit, e) Result.t
      and* _ = well_formed_type context t2
      in Ok ()
 
+(** [scoped context element action] runs an algorithmic typing action inside by
+    first appending the element to the context, before popping the element.
+ *)
 let scoped context element action =
   let* context' = action (element :: context) in
   Ok (Context.discard_up_to element context')
 
+(** [scoped_unsolved context unsolved action] is similar to scoped, except it
+    also appends a marker element along with the unsolved element.
+ *)
 let scoped_unsolved context unsolved action =
   scoped context (Element.Marker unsolved)
     (function context -> action (Element.Unsolved unsolved :: context))
 
+(** [annotate_type _T _K] optionally annotates some type _T with a kind _K. *)
 let annotate_type (_T : Type.t) (_K : Type.t option) =
   match _K with
   | Some _K ->
