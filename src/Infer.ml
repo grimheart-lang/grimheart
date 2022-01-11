@@ -77,6 +77,7 @@ let scoped_unsolved context unsolved action =
 let annotate_type (_T : Type.t) (_K : Type.t option) =
   match _K with Some _K -> Annotate (_T, _K) | None -> _T
 
+(** [subtype _A _B] checks the subtyping relationship between _A and _B. *)
 let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -126,7 +127,9 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | _ ->
       Error (FailedSubtyping (_A, _B))
 
-and instantiateLeft (gamma : Context.t) (a : string) (_A : Type.t) :
+(** [instantiateLeft a _A] instantiates the unsolved variable a with _B, such
+    that a is a subtype of _B. *)
+and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
   let* gammaL, gammaR =
@@ -137,18 +140,18 @@ and instantiateLeft (gamma : Context.t) (a : string) (_A : Type.t) :
         Error (ContextError e)
   in
   let solveLeft (t : Type.t) : (Context.t, Error.t) result =
-    let* _ = well_formed_type gammaR _A in
+    let* _ = well_formed_type gammaR _B in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
-  match _A with
+  match _B with
   | Constructor _ ->
-      solveLeft _A
+      solveLeft _B
   | Variable _ ->
-      solveLeft _A
+      solveLeft _B
   | Unsolved b -> (
     match break_apart_at (Unsolved b) gammaL with
     | Error _ ->
-        solveLeft _A
+        solveLeft _B
     | Ok (gammaLL, gammaLR) ->
         let gammaL = List.append gammaLL (Solved (b, Unsolved a) :: gammaLR) in
         let gamma = List.append gammaL (Unsolved a :: gammaR) in
@@ -201,11 +204,13 @@ and instantiateLeft (gamma : Context.t) (a : string) (_A : Type.t) :
       let* theta = instantiateLeft gamma a' _A in
       instantiateLeft theta b' (Context.apply theta _B)
 
-and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
+(** [instantiateRight _A b] instantiates the unsolved variable b with _A, such
+    that _A is a subtype of b. *)
+and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
     (Context.t, Error.t) result =
   let open Primitives in
   let* gammaL, gammaR =
-    match break_apart_at (Unsolved a) gamma with
+    match break_apart_at (Unsolved b) gamma with
     | Ok (gammaL, gammaR) ->
         Ok (gammaL, gammaR)
     | Error e ->
@@ -213,7 +218,7 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
   in
   let solveRight (t : Type.t) : (Context.t, Error.t) result =
     let* _ = well_formed_type gammaR _A in
-    Ok (List.append gammaL (Solved (a, t) :: gammaR))
+    Ok (List.append gammaL (Solved (b, t) :: gammaR))
   in
   match _A with
   | Constructor _ ->
@@ -225,8 +230,8 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
     | Error _ ->
         solveRight _A
     | Ok (gammaLL, gammaLR) ->
-        let gammaL = List.append gammaLL (Solved (b, Unsolved a) :: gammaLR) in
-        let gamma = List.append gammaL (Unsolved a :: gammaR) in
+        let gammaL = List.append gammaLL (Solved (b, Unsolved b) :: gammaLR) in
+        let gamma = List.append gammaL (Unsolved b :: gammaR) in
         Ok gamma )
   | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
     ->
@@ -234,7 +239,7 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+          [ Element.Solved (b, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
           ; Element.Unsolved b' ]
         in
@@ -251,7 +256,7 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved (a, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
+          [ Element.Solved (b, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
           ; Element.Unsolved b' ]
         in
@@ -269,7 +274,7 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
       let gamma =
         let gammaM =
           [ Element.Solved
-              (a, Type.Annotate (Type.Unsolved a', Type.Unsolved b'))
+              (b, Type.Annotate (Type.Unsolved a', Type.Unsolved b'))
           ; Element.Unsolved a'
           ; Element.Unsolved b' ]
         in
@@ -278,6 +283,7 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (a : string) :
       let* theta = instantiateRight gamma _A a' in
       instantiateRight theta (Context.apply theta _B) b'
 
+(** [check gamma e _A] checks that the expression e has the type _A. *)
 and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -308,6 +314,7 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       let* theta, _A' = infer gamma e in
       subtype theta (Context.apply theta _A') (Context.apply theta _A)
 
+(** [infer gamma e] infers the type of an expression e. *)
 and infer (gamma : Context.t) (e : _ Expr.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
@@ -375,6 +382,8 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
       let v' = fresh_name () in
       infer (Variable (v', t) :: gamma) (Expr.substitute v (Variable v') e2)
 
+(** [infer_apply gamma _A e] infers the type of the application of some type _A
+    to an expression e. *)
 and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
@@ -408,6 +417,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
   | _ ->
       Error (FailedInfererence (e, _A))
 
+(** [check_kind gamma _T _K] checks whether some type _T has a kind _K. *)
 and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
@@ -438,6 +448,7 @@ and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
       let* theta, _TK = infer_kind gamma _T in
       subtype theta (Context.apply theta _TK) (Context.apply theta _K)
 
+(** [infer_kind gamma _T] infers the kind of some type _T. *)
 and infer_kind (gamma : Context.t) (_T : Type.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
@@ -490,6 +501,8 @@ and infer_kind (gamma : Context.t) (_T : Type.t) :
       | _ ->
           failwith "infer_kind: forall binder has no kind" )
 
+(** [infer_apply_kind gamma _K _X] infers the type of the application of the
+    kind _K to some type _X. *)
 and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   let open Primitives in
   match _K with
@@ -522,6 +535,8 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   | _ ->
       raise (Failure "Impossible case in synth_app_kind")
 
+(** [infer_type_with context e] infers the type of some expression e using the
+    provided context. *)
 let infer_type_with (context : Context.t) (e : _ Expr.t) :
     (Type.t, Error.t) result =
   let* delta, poly_type = infer context e in
@@ -541,4 +556,5 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
   in
   Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
 
+(** [infer_type e] infers the type of some expression with an empty context. *)
 let infer_type : _ Expr.t -> (Type.t, Error.t) result = infer_type_with []
