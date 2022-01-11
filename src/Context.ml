@@ -4,7 +4,7 @@ open Core_kernel
 module Element = struct
   type t =
     | Variable of string * Type.t
-    | Quantified of string
+    | Quantified of string * Type.t option
     | Unsolved of string
     | Solved of string * Type.t
     | Marker of string

@@ -28,7 +28,12 @@ let rec well_formed_type (context : Context.t) (t : Type.t) : (unit, e) Result.t
   | Constructor _ ->
      Ok ()
   | Variable v ->
-     if Context.mem context (Quantified v) then
+     if Context.mem context (Quantified (v, None)) then
+       Ok ()
+     else
+       Error (IllFormedType t)
+  | Annotate (Variable v, k) ->
+     if Context.mem context (Quantified (v, Some k)) then
        Ok ()
      else
        Error (IllFormedType t)
@@ -44,7 +49,7 @@ let rec well_formed_type (context : Context.t) (t : Type.t) : (unit, e) Result.t
        | None -> Error (IllFormedType t)
      )
   | Forall (a, k, t) ->
-     let* () = well_formed_type (Quantified a :: context) t in
+     let* () = well_formed_type (Quantified (a, k) :: context) t in
      ( match k with
        | Some k -> well_formed_type context k
        | None -> Ok ()
