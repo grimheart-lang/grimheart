@@ -9,16 +9,12 @@ type 'a t =
 
 let rec substitute (a : string) (r : _ t) (e : _ t) : _ t =
   match e with
-  | Literal _ ->
-      e
-  | Variable a' ->
-      if String.equal a a' then r else e
+  | Literal _ -> e
+  | Variable a' -> if String.equal a a' then r else e
   | Lambda (a', e') ->
       if String.equal a a' then e else Lambda (a', substitute a r e')
-  | Apply (f, x) ->
-      Apply (substitute a r f, substitute a r x)
-  | Annotate (e, t) ->
-      Annotate (substitute a r e, t)
+  | Apply (f, x) -> Apply (substitute a r f, substitute a r x)
+  | Annotate (e, t) -> Annotate (substitute a r e, t)
   | Let (a', n, e1, e2) ->
       Let
         ( a'

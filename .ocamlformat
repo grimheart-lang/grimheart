@@ -1,7 +1,11 @@
-break-cases = fit
+profile = conventional
+break-separators = before
+doc-comments = before-except-val
+dock-collection-brackets = false
 if-then-else = keyword-first
 line-endings = lf
-margin = 80
+module-item-spacing = sparse
 parse-docstrings = true
-profile = ocamlformat
+sequence-blank-line = compact
+space-around-lists = false
 wrap-comments = true

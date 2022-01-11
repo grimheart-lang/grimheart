@@ -15,29 +15,21 @@ type t =
 
 let rec substitute (a : string) (r : t) (t : t) : t =
   match t with
-  | Constructor _ ->
-      t
-  | Variable a' | Unsolved a' ->
-      if String.equal a a' then r else t
+  | Constructor _ -> t
+  | Variable a' | Unsolved a' -> if String.equal a a' then r else t
   | Forall (a', k, t) ->
       if String.equal a a' then t else Forall (a', k, substitute a r t)
-  | Apply (t1, t2) ->
-      Apply (substitute a r t1, substitute a r t2)
-  | KindApply (t1, t2) ->
-      KindApply (substitute a r t1, substitute a r t2)
-  | Annotate (t1, t2) ->
-      Annotate (substitute a r t1, substitute a r t2)
+  | Apply (t1, t2) -> Apply (substitute a r t1, substitute a r t2)
+  | KindApply (t1, t2) -> KindApply (substitute a r t1, substitute a r t2)
+  | Annotate (t1, t2) -> Annotate (substitute a r t1, substitute a r t2)
 
 let is_mono_type (t : t) : bool = match t with Forall _ -> false | _ -> true
 
 let rec free_type_variables (t : t) : type_vars_t =
   match t with
-  | Constructor _ ->
-      Set.empty (module String)
-  | Variable v | Unsolved v ->
-      Set.singleton (module String) v
-  | Forall (a, _, t) ->
-      Set.remove (free_type_variables t) a
+  | Constructor _ -> Set.empty (module String)
+  | Variable v | Unsolved v -> Set.singleton (module String) v
+  | Forall (a, _, t) -> Set.remove (free_type_variables t) a
   | Apply (t1, t2) | KindApply (t1, t2) | Annotate (t1, t2) ->
       Set.union (free_type_variables t1) (free_type_variables t2)
 

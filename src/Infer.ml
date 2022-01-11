@@ -24,35 +24,32 @@ let ( and* ) : (_, Error.t) result -> _ = Result.Let_syntax.Let_syntax.both
 let fresh_name : unit -> string =
   let i = ref (-1) in
   fun () ->
-    incr i ;
+    incr i;
     "t" ^ string_of_int !i
 
 let rec well_formed_type (context : Context.t) (_T : Type.t) :
     (unit, Error.t) result =
   match _T with
-  | Constructor _ ->
-      Ok ()
+  | Constructor _ -> Ok ()
   | Variable v ->
-      if Context.mem context (Quantified (v, None)) then Ok ()
+      if Context.mem context (Quantified (v, None))
+      then Ok ()
       else Error (IllFormedType _T)
   | Annotate (Variable v, k) ->
-      if Context.mem context (Quantified (v, Some k)) then Ok ()
+      if Context.mem context (Quantified (v, Some k))
+      then Ok ()
       else Error (IllFormedType _T)
   | Unsolved u -> (
       let predicate : Element.t -> bool = function
-        | (Unsolved u' | Solved (u', _)) when String.equal u u' ->
-            true
-        | _ ->
-            false
+        | (Unsolved u' | Solved (u', _)) when String.equal u u' -> true
+        | _ -> false
       in
       match List.find context ~f:predicate with
-      | Some _ ->
-          Ok ()
-      | None ->
-          Error (IllFormedType _T) )
+      | Some _ -> Ok ()
+      | None -> Error (IllFormedType _T))
   | Forall (a, _K, _A) -> (
       let* () = well_formed_type (Quantified (a, _K) :: context) _A in
-      match _K with Some _K -> well_formed_type context _K | None -> Ok () )
+      match _K with Some _K -> well_formed_type context _K | None -> Ok ())
   | Apply (_A, _B) | KindApply (_A, _B) | Annotate (_A, _B) ->
       let* _ = well_formed_type context _A
       and* _ = well_formed_type context _B in
@@ -68,7 +65,7 @@ let scoped context element action =
     also appends a marker element along with the unsolved element. *)
 let scoped_unsolved context unsolved action =
   scoped context (Element.Marker unsolved) (fun context ->
-      action (Element.Unsolved unsolved :: context) )
+      action (Element.Unsolved unsolved :: context))
 
 (** [annotate_type _T _K] optionally annotates some type _T with a kind _K. *)
 let annotate_type (_T : Type.t) (_K : Type.t option) =
@@ -120,36 +117,32 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | Annotate (_T, _K), _U ->
       let* gamma = check_kind gamma _U _K in
       subtype gamma _T _U
-  | _ ->
-      Error (FailedSubtyping (_A, _B))
+  | _ -> Error (FailedSubtyping (_A, _B))
 
 and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
   let* gammaL, gammaR =
     match break_apart_at (Unsolved a) gamma with
-    | Ok (gammaL, gammaR) ->
-        Ok (gammaL, gammaR)
-    | Error e ->
-        Error (ContextError e)
+    | Ok (gammaL, gammaR) -> Ok (gammaL, gammaR)
+    | Error e -> Error (ContextError e)
   in
   let solveLeft (t : Type.t) : (Context.t, Error.t) result =
     let* _ = well_formed_type gammaR _B in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
   match _B with
-  | Constructor _ ->
-      solveLeft _B
-  | Variable _ ->
-      solveLeft _B
+  | Constructor _ -> solveLeft _B
+  | Variable _ -> solveLeft _B
   | Unsolved b -> (
-    match break_apart_at (Unsolved b) gammaL with
-    | Error _ ->
-        solveLeft _B
-    | Ok (gammaLL, gammaLR) ->
-        let gammaL = List.append gammaLL (Solved (b, Unsolved a) :: gammaLR) in
-        let gamma = List.append gammaL (Unsolved a :: gammaR) in
-        Ok gamma )
+      match break_apart_at (Unsolved b) gammaL with
+      | Error _ -> solveLeft _B
+      | Ok (gammaLL, gammaLR) ->
+          let gammaL =
+            List.append gammaLL (Solved (b, Unsolved a) :: gammaLR)
+          in
+          let gamma = List.append gammaL (Unsolved a :: gammaR) in
+          Ok gamma)
   | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
     ->
       let a' = fresh_name () in
@@ -165,7 +158,9 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
       let* theta = instantiateRight gamma _A a' in
       instantiateLeft theta b' (Context.apply theta _B)
   | Forall (b, _K, _B) ->
-      scoped gamma (Quantified (b, _K)) (fun gamma -> instantiateLeft gamma b _B)
+      scoped gamma
+        (Quantified (b, _K))
+        (fun gamma -> instantiateLeft gamma b _B)
   | Apply (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
@@ -203,28 +198,25 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
   let open Primitives in
   let* gammaL, gammaR =
     match break_apart_at (Unsolved b) gamma with
-    | Ok (gammaL, gammaR) ->
-        Ok (gammaL, gammaR)
-    | Error e ->
-        Error (ContextError e)
+    | Ok (gammaL, gammaR) -> Ok (gammaL, gammaR)
+    | Error e -> Error (ContextError e)
   in
   let solveRight (t : Type.t) : (Context.t, Error.t) result =
     let* _ = well_formed_type gammaR _A in
     Ok (List.append gammaL (Solved (b, t) :: gammaR))
   in
   match _A with
-  | Constructor _ ->
-      solveRight _A
-  | Variable _ ->
-      solveRight _A
+  | Constructor _ -> solveRight _A
+  | Variable _ -> solveRight _A
   | Unsolved b -> (
-    match break_apart_at (Unsolved b) gammaL with
-    | Error _ ->
-        solveRight _A
-    | Ok (gammaLL, gammaLR) ->
-        let gammaL = List.append gammaLL (Solved (b, Unsolved b) :: gammaLR) in
-        let gamma = List.append gammaL (Unsolved b :: gammaR) in
-        Ok gamma )
+      match break_apart_at (Unsolved b) gammaL with
+      | Error _ -> solveRight _A
+      | Ok (gammaLL, gammaLR) ->
+          let gammaL =
+            List.append gammaLL (Solved (b, Unsolved b) :: gammaLR)
+          in
+          let gamma = List.append gammaL (Unsolved b :: gammaR) in
+          Ok gamma)
   | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
     ->
       let a' = fresh_name () in
@@ -280,17 +272,16 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
   let open Primitives in
   match (e, _A) with
   | Literal l, Constructor c -> (
-    match (l, c) with
-    | Char _, "Char" | String _, "String" | Int _, "Int" | Float _, "Float" ->
-        Ok gamma
-    | Array _, "Array" ->
-        raise
-          (Failure "todo: checking routine for arrays is not yet implemented")
-    | Object _, "Object" ->
-        raise
-          (Failure "todo: checking routine for objects is not yet implemented")
-    | _ ->
-        Error (FailedChecking (e, _A)) )
+      match (l, c) with
+      | Char _, "Char" | String _, "String" | Int _, "Int" | Float _, "Float" ->
+          Ok gamma
+      | Array _, "Array" ->
+          raise
+            (Failure "todo: checking routine for arrays is not yet implemented")
+      | Object _, "Object" ->
+          raise
+            (Failure "todo: checking routine for objects is not yet implemented")
+      | _ -> Error (FailedChecking (e, _A)))
   | Lambda (n, e), Apply (Apply (t_function', _A1), _A2)
     when Type.equal t_function t_function' ->
       let n' = fresh_name () in
@@ -312,36 +303,28 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
   | Literal l ->
       let t =
         match l with
-        | Literal.Char _ ->
-            t_char
-        | Literal.String _ ->
-            t_string
-        | Literal.Int _ ->
-            t_int
-        | Literal.Float _ ->
-            t_float
+        | Literal.Char _ -> t_char
+        | Literal.String _ -> t_string
+        | Literal.Int _ -> t_int
+        | Literal.Float _ -> t_float
         | Literal.Array _ ->
             raise
               (Failure
-                 "todo: inference routine for array is not yet implemented" )
+                 "todo: inference routine for array is not yet implemented")
         | Literal.Object (_, _) ->
             raise
               (Failure
-                 "todo: inference routine for object is not yet implemented" )
+                 "todo: inference routine for object is not yet implemented")
       in
       Ok (gamma, t)
   | Variable v -> (
       let find_variable = function
-        | Element.Variable (v', t) when String.equal v v' ->
-            Some t
-        | _ ->
-            None
+        | Element.Variable (v', t) when String.equal v v' -> Some t
+        | _ -> None
       in
       match List.find_map gamma ~f:find_variable with
-      | Some t ->
-          Ok (gamma, t)
-      | None ->
-          Error (UnknownVariable v) )
+      | Some t -> Ok (gamma, t)
+      | None -> Error (UnknownVariable v))
   | Lambda (v, e) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
@@ -351,7 +334,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
           (Unsolved b' :: Unsolved a' :: gamma)
           (Variable (v', Unsolved a'))
           (fun gamma ->
-            check gamma (Expr.substitute v (Variable v') e) (Unsolved b') )
+            check gamma (Expr.substitute v (Variable v') e) (Unsolved b'))
       in
       Ok (delta, Sugar.fn (Unsolved a') (Unsolved b'))
   | Apply (f, x) ->
@@ -366,8 +349,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
         | Some t ->
             let* gamma = check gamma e1 t in
             Ok (gamma, t)
-        | None ->
-            infer gamma e1
+        | None -> infer gamma e1
       in
       let v' = fresh_name () in
       infer (Variable (v', t) :: gamma) (Expr.substitute v (Variable v') e2)
@@ -385,10 +367,8 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
       let b' = fresh_name () in
       let* gammaL, gammaR =
         match break_apart_at (Unsolved a') gamma with
-        | Ok (gammaL, gammaR) ->
-            Ok (gammaL, gammaR)
-        | Error e ->
-            Error (ContextError e)
+        | Ok (gammaL, gammaR) -> Ok (gammaL, gammaR)
+        | Error e -> Error (ContextError e)
       in
       let gammaM =
         [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
@@ -402,15 +382,13 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
     ->
       let* delta = check gamma e _A in
       Ok (delta, _B)
-  | _ ->
-      Error (FailedInfererence (e, _A))
+  | _ -> Error (FailedInfererence (e, _A))
 
 and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
   match (_T, _K) with
-  | Constructor _, Constructor "Type" when is_primitive_type _T ->
-      Ok gamma
+  | Constructor _, Constructor "Type" when is_primitive_type _T -> Ok gamma
   | ( Constructor _
     , Apply (Apply (t_function', Constructor "Type"), Constructor "Type") )
     when Type.equal t_function t_function' && is_primitive_type_type _T ->
@@ -439,8 +417,7 @@ and infer_kind (gamma : Context.t) (_T : Type.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
   match _T with
-  | Constructor _ when is_primitive_type _T ->
-      Ok (gamma, t_type)
+  | Constructor _ when is_primitive_type _T -> Ok (gamma, t_type)
   | Constructor _ when is_primitive_type_type _T ->
       Ok (gamma, Sugar.fn t_type t_type)
   | Constructor "Function" ->
@@ -462,16 +439,12 @@ and infer_kind (gamma : Context.t) (_T : Type.t) :
       Ok (Unsolved u' :: gamma, Type.substitute u (Unsolved u') _T)
   | Variable v -> (
       let find_variable : Element.t -> Type.t option = function
-        | Variable (v', t) when String.equal v v' ->
-            Some t
-        | _ ->
-            None
+        | Variable (v', t) when String.equal v v' -> Some t
+        | _ -> None
       in
       match List.find_map gamma ~f:find_variable with
-      | Some t ->
-          Ok (gamma, t)
-      | None ->
-          Error (UnknownVariable v) )
+      | Some t -> Ok (gamma, t)
+      | None -> Error (UnknownVariable v))
   | Apply (_A, _B) ->
       let* gamma, _K = infer_kind gamma _A in
       infer_apply_kind gamma _K _B
@@ -484,8 +457,7 @@ and infer_kind (gamma : Context.t) (_T : Type.t) :
       | Forall (a, Some k, t) ->
           let* gamma = check_kind gamma _B k in
           Ok (gamma, Type.substitute a _B t)
-      | _ ->
-          failwith "infer_kind: forall binder has no kind" )
+      | _ -> failwith "infer_kind: forall binder has no kind")
 
 and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   let open Primitives in
@@ -499,10 +471,8 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
       let b' = fresh_name () in
       let* gammaL, gammaR =
         match break_apart_at (Unsolved a) gamma with
-        | Ok (gammaL, gammaR) ->
-            Ok (gammaL, gammaR)
-        | Error e ->
-            Error (ContextError e)
+        | Ok (gammaL, gammaR) -> Ok (gammaL, gammaR)
+        | Error e -> Error (ContextError e)
       in
       let gammaM =
         [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
@@ -516,8 +486,7 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
     ->
       let* delta = check_kind gamma _X _A in
       Ok (delta, _B)
-  | _ ->
-      raise (Failure "Impossible case in synth_app_kind")
+  | _ -> raise (Failure "Impossible case in synth_app_kind")
 
 let infer_type_with (context : Context.t) (e : _ Expr.t) :
     (Type.t, Error.t) result =
@@ -525,7 +494,7 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
   let fresh_variable =
     let i = ref (-1) in
     fun () ->
-      incr i ;
+      incr i;
       String.of_char (Char.of_int_exn (97 + (!i mod 26)))
   in
   let algebra element poly_type =
@@ -533,8 +502,7 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
     | Element.Unsolved u ->
         let u' = fresh_variable () in
         Forall (u', None, Type.substitute u (Variable u') poly_type)
-    | _ ->
-        poly_type
+    | _ -> poly_type
   in
   Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
 
