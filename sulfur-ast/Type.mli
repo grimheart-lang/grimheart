@@ -12,6 +12,10 @@ type t =
 
 val equal : t -> t -> bool
 
+val pp : Format.formatter -> t -> unit
+
+val show : t -> string
+
 val substitute : string -> t -> t -> t
 (** [substitute a r t] takes all occurences of the variable a inside of a type t
     and replaces them with the type r. This is essentially just alpha conversion

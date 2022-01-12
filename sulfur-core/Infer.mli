@@ -1,3 +1,5 @@
+open Sulfur_ast
+
 (** The error type used in this module. *)
 module Error : sig
   type t =
@@ -11,6 +13,10 @@ module Error : sig
     | ContextError of Context.Error.t
 
   val equal : t -> t -> bool
+
+  val pp : Format.formatter -> t -> unit
+
+  val show : t -> string
 end
 
 val well_formed_type : Context.t -> Type.t -> (unit, Error.t) result

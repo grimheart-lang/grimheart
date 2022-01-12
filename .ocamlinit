@@ -1,9 +1,4 @@
-module Context = Sulfur__Context
-module Expr = Sulfur__Expr
-module Infer = Sulfur__Infer
-module Type = Sulfur__Type
+#use_output "dune top"
 
-open Context
-open Expr
-open Infer
-open Type
+module S_Ast = Sulfur_ast
+module S_Core = Sulfur_core

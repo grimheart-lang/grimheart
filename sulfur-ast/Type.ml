@@ -11,7 +11,7 @@ type t =
   | Apply of t * t
   | KindApply of t * t
   | Annotate of t * t
-[@@deriving eq]
+[@@deriving eq, show]
 
 let rec substitute (a : string) (r : t) (t : t) : t =
   match t with

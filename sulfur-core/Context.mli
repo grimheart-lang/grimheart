@@ -1,3 +1,5 @@
+open Sulfur_ast
+
 (** The type of context elements. *)
 module Element : sig
   type t =
@@ -18,6 +20,10 @@ module Error : sig
   type t = FailedToBreakApart
 
   val equal : t -> t -> bool
+
+  val pp : Format.formatter -> t -> unit
+
+  val show : t -> string
 end
 
 val apply : t -> Type.t -> Type.t
