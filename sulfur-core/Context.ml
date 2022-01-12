@@ -1,6 +1,8 @@
 (** Type-checking context. *)
 open Core_kernel
 
+open Sulfur_ast
+
 module Element = struct
   type t =
     | Variable of string * Type.t

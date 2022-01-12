@@ -1,3 +1,5 @@
+open Sulfur_ast
+
 (** The type of context elements. *)
 module Element : sig
   type t =

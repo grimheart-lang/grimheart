@@ -1,5 +1,6 @@
 open Core_kernel
 open Context
+open Sulfur_ast
 open Expr
 open Type
 

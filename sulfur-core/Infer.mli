@@ -1,3 +1,5 @@
+open Sulfur_ast
+
 (** The error type used in this module. *)
 module Error : sig
   type t =
