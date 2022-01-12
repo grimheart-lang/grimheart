@@ -13,7 +13,7 @@
 (generate_opam_files true)
 
 (package
- (name "sulfur")
+ (name "sulfur_core")
  (synopsis "Functional programming language with rich type inference")
  (depends
   ("core_kernel"
@@ -23,3 +23,6 @@
   ("dolog"
    (>= "6.0.0"))))
 
+(package
+ (name "sulfur_ast")
+ (synopsis "Definitions and traversals for the language's AST."))
