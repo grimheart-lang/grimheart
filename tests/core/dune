@@ -1,0 +1,5 @@
+(test
+ (name core)
+ (libraries alcotest sulfur_core)
+ (preprocess
+  (pps ppx_deriving.show)))
