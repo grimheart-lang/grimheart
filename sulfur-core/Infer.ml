@@ -294,17 +294,21 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
     (Context.t, Error.t) result =
   let open Primitives in
   match (e, _A) with
-  | Literal l, Constructor c -> (
-      match (l, c) with
-      | Char _, "Char" | String _, "String" | Int _, "Int" | Float _, "Float" ->
-          Ok gamma
-      | Array _, "Array" ->
-          raise
-            (Failure "todo: checking routine for arrays is not yet implemented")
-      | Object _, "Object" ->
-          raise
-            (Failure "todo: checking routine for objects is not yet implemented")
-      | _ -> Error (FailedChecking (e, _A)))
+  | Literal (Char _), Constructor "Char"
+  | Literal (String _), Constructor "String"
+  | Literal (Int _), Constructor "Int"
+  | Literal (Float _), Constructor "Float" ->
+      Ok gamma
+  | Literal (Array _As), Apply (Constructor "Array", _A') ->
+      let rec aux gamma = function
+        | h :: t ->
+            let* gamma = check gamma h _A' in
+            aux gamma t
+        | [] -> Ok gamma
+      in
+      aux gamma _As
+  | Literal (Object _), _ ->
+      raise (Failure "todo: checking routine for object is not yet implemented")
   | Lambda (n, e), Apply (Apply (t_function', _A1), _A2)
     when Type.equal t_function t_function' ->
       let n' = fresh_name () in
@@ -323,23 +327,27 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
     (Context.t * Type.t, Error.t) result =
   let open Primitives in
   match e with
-  | Literal l ->
-      let t =
-        match l with
-        | Literal.Char _ -> t_char
-        | Literal.String _ -> t_string
-        | Literal.Int _ -> t_int
-        | Literal.Float _ -> t_float
-        | Literal.Array _ ->
-            raise
-              (Failure
-                 "todo: inference routine for array is not yet implemented")
-        | Literal.Object _ ->
-            raise
-              (Failure
-                 "todo: inference routine for object is not yet implemented")
+  | Literal (Char _) -> Ok (gamma, t_char)
+  | Literal (String _) -> Ok (gamma, t_string)
+  | Literal (Int _) -> Ok (gamma, t_int)
+  | Literal (Float _) -> Ok (gamma, t_float)
+  | Literal (Array _As) ->
+      let a = fresh_name () in
+      (* NOTE: This annotation propagates up but isn't erased at any point by
+         the top-level generalization algorithm. As such, tests would have to
+         explicitly look for annotations... for now. *)
+      let _U = Annotate (Unsolved a, t_type) in
+      let rec aux gamma = function
+        | h :: t ->
+            let* gamma, _T = infer gamma h in
+            let* gamma = subtype gamma _T _U in
+            aux gamma t
+        | [] -> Ok (gamma, Sugar.ap t_array _U)
       in
-      Ok (gamma, t)
+      aux (Unsolved a :: gamma) _As
+  | Literal (Object _) ->
+      raise
+        (Failure "todo: inference routine for object is not yet implemented")
   | Variable v -> (
       let find_variable = function
         | Element.Variable (v', t) when String.equal v v' -> Some t
