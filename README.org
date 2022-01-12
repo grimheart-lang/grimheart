@@ -21,7 +21,7 @@ x f = (f 42, f "meaning of life")
 This project uses =dune= and =opam=. To create a development environment, create a local =opam= switch.
 #+begin_src sh
 # This command will take some time
-$ opam switch create ./ --deps-only
+$ opam switch create -y 4.13.1 ./ --deps-only
 #+end_src
 
 Once the dependencies are installed, you can now run =dune= commands for development. Additionally,
