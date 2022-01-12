@@ -33,11 +33,11 @@ let () =
             (Expr.Literal (Int 0))
         ; infer_type_check_test_case "infer float literal" `Quick t_float
             (Expr.Literal (Float 0.))
-        ; infer_type_check_test_case "infer array literal" `Quick
-            (Type.Sugar.ap t_array t_int)
-            (Expr.Literal (Literal.Array [Expr.Literal (Int 0)]))
-        ; infer_type_check_test_case "infer object literal" `Quick
-            (Type.Sugar.ap (Type.Constructor "Object") t_int)
-            (Expr.Literal (Literal.Object [("a", Expr.Literal (Int 0))]))
+        (* ; infer_type_check_test_case "infer array literal" `Quick *)
+        (*     (Type.Sugar.ap t_array t_int) *)
+        (*     (Expr.Literal (Literal.Array [Expr.Literal (Int 0)])) *)
+        (* ; infer_type_check_test_case "infer object literal" `Quick *)
+        (*     (Type.Sugar.ap (Type.Constructor "Object") t_int) *)
+        (*     (Expr.Literal (Literal.Object [("a", Expr.Literal (Int 0))])) *)
         ] )
     ]
