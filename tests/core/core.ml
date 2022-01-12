@@ -2,10 +2,6 @@ open Sulfur_ast
 open Sulfur_core
 
 module Test_utils = struct
-  let pp_type_error formatter = function
-    | Ok t -> Type.pp formatter t
-    | Error e -> Infer.Error.pp formatter e
-
   let testable_type_error =
     let open Alcotest in
     result
