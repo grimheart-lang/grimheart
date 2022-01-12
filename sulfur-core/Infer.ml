@@ -544,7 +544,7 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
   in
   let algebra element poly_type =
     match element with
-    | Element.Unsolved u ->
+    | Element.Unsolved u when Set.mem (Type.free_type_variables poly_type) u ->
         let u' = fresh_variable () in
         Forall (u', None, Type.substitute u (Variable u') poly_type)
     | _ -> poly_type
