@@ -321,7 +321,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
             raise
               (Failure
                  "todo: inference routine for array is not yet implemented")
-        | Literal.Object (_, _) ->
+        | Literal.Object _ ->
             raise
               (Failure
                  "todo: inference routine for object is not yet implemented")

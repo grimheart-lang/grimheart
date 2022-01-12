@@ -6,5 +6,5 @@ type 'a t =
   | Int of int
   | Float of float
   | Array of 'a list
-  | Object of string * 'a list
 [@@deriving eq]
+  | Object of (string * 'a) list
