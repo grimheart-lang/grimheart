@@ -7,8 +7,10 @@ module Test_utils = struct
     | Error e -> Infer.Error.pp formatter e
 
   let testable_type_error =
-    Alcotest.testable pp_type_error
-      (Result.equal ~ok:Type.equal ~error:Infer.Error.equal)
+    let open Alcotest in
+    result
+      (testable Type.pp Type.equal)
+      (testable Infer.Error.pp Infer.Error.equal)
 
   let infer_type_check_test_case annotation speed expected value =
     let check () =
