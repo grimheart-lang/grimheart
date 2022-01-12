@@ -13,7 +13,7 @@ module Error = struct
     | IllFormedType of Type.t
     | UnknownVariable of string
     | ContextError of Context.Error.t
-  [@@deriving eq]
+  [@@deriving eq, show]
 end
 
 let ( let* ) : (_, Error.t) result -> _ = Result.( >>= )

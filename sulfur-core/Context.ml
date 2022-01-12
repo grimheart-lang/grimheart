@@ -14,7 +14,7 @@ end
 type t = Element.t list
 
 module Error = struct
-  type t = FailedToBreakApart [@@deriving eq]
+  type t = FailedToBreakApart [@@deriving eq, show]
 end
 
 let rec apply (context : t) (t : Type.t) : Type.t =

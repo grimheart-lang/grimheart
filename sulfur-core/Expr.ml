@@ -5,7 +5,7 @@ type 'a t =
   | Apply of 'a t * 'a t
   | Annotate of 'a t * Type.t
   | Let of string * Type.t option * 'a t * 'a t
-[@@deriving eq]
+[@@deriving eq, show]
 
 let rec substitute (a : string) (r : _ t) (e : _ t) : _ t =
   match e with
