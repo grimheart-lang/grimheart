@@ -13,16 +13,23 @@
 (generate_opam_files true)
 
 (package
+ (name "sulfur_ast")
+ (synopsis "Core modules for the syntax")
+ (depends
+  ("core_kernel"
+   (>= "v0.14.2"))
+  ("ppx_deriving"
+   (>= "5.2.1"))))
+
+(package
  (name "sulfur_core")
- (synopsis "Functional programming language with rich type inference")
+ (synopsis "Core modules for the language")
  (depends
   ("core_kernel"
    (>= "v0.14.2"))
   ("ppx_deriving"
    (>= "5.2.1"))
   ("dolog"
-   (>= "6.0.0"))))
-
-(package
- (name "sulfur_ast")
- (synopsis "Definitions and traversals for the language's AST."))
+   (>= "6.0.0"))
+  ("sulfur_ast"
+   (= :version))))
