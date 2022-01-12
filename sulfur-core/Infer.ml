@@ -333,18 +333,29 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
   | Literal (Float _) -> Ok (gamma, t_float)
   | Literal (Array _As) ->
       let a = fresh_name () in
-      (* NOTE: This annotation propagates up but isn't erased at any point by
-         the top-level generalization algorithm. As such, tests would have to
-         explicitly look for annotations... for now. *)
-      let _U = Annotate (Unsolved a, t_type) in
-      let rec aux gamma = function
-        | h :: t ->
-            let* gamma, _T = infer gamma h in
-            let* gamma = subtype gamma _T _U in
-            aux gamma t
-        | [] -> Ok (gamma, Sugar.ap t_array _U)
+      let rec aux (gamma : Context.t) (current_t : Type.t option) = function
+        | h :: t -> (
+            let* gamma, inferred_t = infer gamma h in
+            match (inferred_t, current_t) with
+            | _, Some current_t ->
+                (* todo: make this rethrow a better error *)
+                let* gamma = subtype gamma inferred_t current_t in
+                aux gamma (Some inferred_t) t
+            | _, None -> aux gamma (Some inferred_t) t)
+        | [] -> (
+            (* NOTE: These annotations propagate up but they aren't erased at
+               any point by the top-level generalization algorithm. As such,
+               tests would have to explicitly look for annotations... for
+               now. *)
+            match current_t with
+            | Some current_t ->
+                Ok (gamma, Apply (t_array, Annotate (current_t, t_type)))
+            | None ->
+                Ok
+                  ( Unsolved a :: gamma
+                  , Apply (t_array, Annotate (Unsolved a, t_type)) ))
       in
-      aux (Unsolved a :: gamma) _As
+      aux gamma None _As
   | Literal (Object _) ->
       raise
         (Failure "todo: inference routine for object is not yet implemented")
