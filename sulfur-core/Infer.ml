@@ -159,9 +159,11 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+          [
+            Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
-          ; Element.Unsolved b' ]
+          ; Element.Unsolved b'
+          ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
@@ -176,9 +178,11 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved (a, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
+          [
+            Element.Solved (a, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
-          ; Element.Unsolved b' ]
+          ; Element.Unsolved b'
+          ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
@@ -193,10 +197,12 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved
+          [
+            Element.Solved
               (a, Type.Annotate (Type.Unsolved a', Type.Unsolved b'))
           ; Element.Unsolved a'
-          ; Element.Unsolved b' ]
+          ; Element.Unsolved b'
+          ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
@@ -233,9 +239,11 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved (b, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+          [
+            Element.Solved (b, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
-          ; Element.Unsolved b' ]
+          ; Element.Unsolved b'
+          ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
@@ -250,9 +258,11 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved (b, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
+          [
+            Element.Solved (b, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
-          ; Element.Unsolved b' ]
+          ; Element.Unsolved b'
+          ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
@@ -267,10 +277,12 @@ and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
       let b' = fresh_name () in
       let gamma =
         let gammaM =
-          [ Element.Solved
+          [
+            Element.Solved
               (b, Type.Annotate (Type.Unsolved a', Type.Unsolved b'))
           ; Element.Unsolved a'
-          ; Element.Unsolved b' ]
+          ; Element.Unsolved b'
+          ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
@@ -381,9 +393,11 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
         | Error e -> Error (ContextError e)
       in
       let gammaM =
-        [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+        [
+          Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
         ; Element.Unsolved a'
-        ; Element.Unsolved b' ]
+        ; Element.Unsolved b'
+        ]
       in
       let gamma = List.concat [gammaL; gammaM; gammaR] in
       let* delta = check gamma e (Unsolved a') in
@@ -484,9 +498,11 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
         | Error e -> Error (ContextError e)
       in
       let gammaM =
-        [ Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+        [
+          Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
         ; Element.Unsolved a'
-        ; Element.Unsolved b' ]
+        ; Element.Unsolved b'
+        ]
       in
       let gamma = List.concat [gammaL; gammaM; gammaR] in
       let* delta = check_kind gamma _X (Unsolved a') in
