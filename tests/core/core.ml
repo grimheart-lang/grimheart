@@ -4,9 +4,7 @@ open Sulfur_core
 module Test_utils = struct
   let testable_type_error =
     let open Alcotest in
-    result
-      (testable Type.pp Type.equal)
-      (testable Infer.Error.pp Infer.Error.equal)
+    result (testable Type.pp Type.equal) (testable Errors.pp Errors.equal)
 
   let infer_type_check_test_case annotation speed expected value =
     let check () =

@@ -2,6 +2,7 @@
 open Core_kernel
 
 open Sulfur_ast
+open Errors
 
 module Element = struct
   type t =
@@ -14,10 +15,6 @@ module Element = struct
 end
 
 type t = Element.t list
-
-module Error = struct
-  type t = FailedToBreakApart [@@deriving eq, show]
-end
 
 let rec apply (context : t) (t : Type.t) : Type.t =
   let open Type in
@@ -56,10 +53,10 @@ let discard_up_to (element : Element.t) (context : t) : t =
   in
   aux context
 
-let break_apart_at (element : Element.t) (context : t) : (t * t, Error.t) result
-    =
+let break_apart_at (element : Element.t) (context : t) :
+    (t * t, Errors.t) result =
   let rec aux collected = function
-    | [] -> Error Error.FailedToBreakApart
+    | [] -> Error FailedToBreakApart
     | current :: rest ->
         if Element.equal element current
         then Ok (List.rev collected, rest)
