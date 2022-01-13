@@ -122,16 +122,16 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
 and instantiate (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Errors.t) result =
   let* gammaL, gammaR = break_apart_at (Unsolved a) gamma in
-  let solveLeft (t : Type.t) : (Context.t, Errors.t) result =
+  let solve (t : Type.t) : (Context.t, Errors.t) result =
     let* _ = well_formed_type gammaR _B in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
   match _B with
-  | Constructor _ -> solveLeft _B
-  | Variable _ -> solveLeft _B
+  | Constructor _ -> solve _B
+  | Variable _ -> solve _B
   | Unsolved b -> (
       match break_apart_at (Unsolved b) gammaL with
-      | Error _ -> solveLeft _B
+      | Error _ -> solve _B
       | Ok (gammaLL, gammaLR) ->
           let gammaL =
             List.append gammaLL (Solved (b, Unsolved a) :: gammaLR)
