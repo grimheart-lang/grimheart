@@ -10,7 +10,11 @@ type t =
   | IllFormedType of Type.t
   | UnknownVariable of string
   | FailedToBreakApart
+  | RethrownError of t * t
 [@@deriving eq, show]
+
+let rethrow (e : t) : ('a, t) result -> ('a, t) result =
+  Result.map_error ~f:(fun e' -> RethrownError (e, e'))
 
 module Let = struct
   let ( let* ) : (_, t) result -> _ = Result.( >>= )
