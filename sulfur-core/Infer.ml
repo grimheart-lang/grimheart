@@ -94,7 +94,7 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
       scoped_unsolved gamma a' (fun gamma -> unify gamma _A1' _A2')
   | _, Forall (b, _K, _B) ->
       let b' = fresh_name () in
-      let _B = Type.substitute b (annotate_type (Variable b') _K) _B in
+      let _B = Type.substitute b (annotate_type (Unsolved b') _K) _B in
       scoped_unsolved gamma b' (fun gamma -> unify gamma _A _B)
   | Forall (a, _K, _A), _ ->
       let a' = fresh_name () in
