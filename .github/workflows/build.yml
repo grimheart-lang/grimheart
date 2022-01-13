@@ -30,8 +30,6 @@ jobs:
 
       - run: opam install . --deps-only --with-test
 
-      - run: opam install "alcotest>=1.5.0"
-
       - run: opam exec -- dune build
 
       - run: opam exec -- dune runtest

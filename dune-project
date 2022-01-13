@@ -25,6 +25,8 @@
  (name "sulfur_core")
  (synopsis "Core modules for the language")
  (depends
+  ("alcotest"
+   (and :with-test (>= "1.5.0")))
   ("core_kernel"
    (>= "v0.14.2"))
   ("ppx_deriving"
