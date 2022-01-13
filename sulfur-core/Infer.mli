@@ -5,18 +5,11 @@ val well_formed_type : Context.t -> Type.t -> (unit, Errors.t) result
     with respect to the context. This function is used to partially verify the
     correctness of the algorithmic context. *)
 
-val subtype : Context.t -> Type.t -> Type.t -> (Context.t, Errors.t) result
-(** [subtype _A _B] checks the subtyping relationship between _A and _B. *)
+val unify : Context.t -> Type.t -> Type.t -> (Context.t, Errors.t) result
+(** [subtype _A _B] unifies the type _A with _B. *)
 
-val instantiateLeft :
-  Context.t -> string -> Type.t -> (Context.t, Errors.t) result
-(** [instantiateLeft a _A] instantiates the unsolved variable a with _B, such
-    that a is a subtype of _B. *)
-
-val instantiateRight :
-  Context.t -> Type.t -> string -> (Context.t, Errors.t) result
-(** [instantiateRight _A b] instantiates the unsolved variable b with _A, such
-    that _A is a subtype of b. *)
+val instantiate : Context.t -> string -> Type.t -> (Context.t, Errors.t) result
+(** [instantiate a _A] instantiates the unsolved variable a with _B. *)
 
 val check : Context.t -> unit Expr.t -> Type.t -> (Context.t, Errors.t) result
 (** [check gamma e _A] checks that the expression e has the type _A. *)

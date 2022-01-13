@@ -3,6 +3,7 @@ open Context
 open Sulfur_ast
 open Expr
 open Type
+open Primitives
 open Errors.Let
 
 (** [fresh_name ()] generates a unique name to avoid collisions. *)
@@ -66,9 +67,8 @@ let scoped_unsolved' (context : Context.t) (unsolved : string)
 let annotate_type (_T : Type.t) (_K : Type.t option) =
   match _K with Some _K -> Annotate (_T, _K) | None -> _T
 
-let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
+let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
     (Context.t, Errors.t) result =
-  let open Primitives in
   match (_A, _B) with
   | Constructor a, Constructor b when String.equal a b ->
       (* todo: perform environment checks here? *)
@@ -85,38 +85,37 @@ let rec subtype (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
     when Type.equal t_function t_function1 && Type.equal t_function t_function2
     ->
-      let* theta = subtype gamma a2 a1 in
-      subtype theta (Context.apply theta b1) (Context.apply theta b2)
+      let* theta = unify gamma a2 a1 in
+      unify theta (Context.apply theta b1) (Context.apply theta b2)
   | _, Forall (b, _K, _B) ->
       let b' = fresh_name () in
       let _B = Type.substitute b (annotate_type (Variable b') _K) _B in
-      scoped gamma (Quantified (b', _K)) (fun gamma -> subtype gamma _A _B)
+      scoped_unsolved gamma b' (fun gamma -> unify gamma _A _B)
   | Forall (a, _K, _A), _ ->
       let a' = fresh_name () in
       let _A = Type.substitute a (annotate_type (Unsolved a') _K) _A in
-      scoped_unsolved gamma a' (fun gamma -> subtype gamma _A _B)
+      scoped_unsolved gamma a' (fun gamma -> unify gamma _A _B)
   | Unsolved a, _
     when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables _B) a) ->
-      instantiateLeft gamma a _B
+      instantiate gamma a _B
   | _, Unsolved b
     when Context.mem gamma (Unsolved b)
          && not (Set.mem (Type.free_type_variables _A) b) ->
-      instantiateRight gamma _A b
+      instantiate gamma b _A
   | Apply (a1, b1), Apply (a2, b2) ->
-      let* gamma = subtype gamma a1 a2 in
-      subtype gamma b1 b2
+      let* gamma = unify gamma a1 a2 in
+      unify gamma b1 b2
   | _U, Annotate (_T, _K) ->
       let* gamma = check_kind gamma _U _K in
-      subtype gamma _U _T
+      unify gamma _U _T
   | Annotate (_T, _K), _U ->
       let* gamma = check_kind gamma _U _K in
-      subtype gamma _T _U
-  | _ -> Error (FailedSubtyping (_A, _B))
+      unify gamma _T _U
+  | _ -> Error (FailedUnification (_A, _B))
 
-and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
+and instantiate (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Errors.t) result =
-  let open Primitives in
   let* gammaL, gammaR = break_apart_at (Unsolved a) gamma in
   let solveLeft (t : Type.t) : (Context.t, Errors.t) result =
     let* _ = well_formed_type gammaR _B in
@@ -148,12 +147,10 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
         in
         List.concat [gammaL; gammaM; gammaR]
       in
-      let* theta = instantiateRight gamma _A a' in
-      instantiateLeft theta b' (Context.apply theta _B)
+      let* theta = instantiate gamma a' _A in
+      instantiate theta b' (Context.apply theta _B)
   | Forall (b, _K, _B) ->
-      scoped gamma
-        (Quantified (b, _K))
-        (fun gamma -> instantiateLeft gamma b _B)
+      scoped gamma (Quantified (b, _K)) (fun gamma -> instantiate gamma b _B)
   | Apply (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
@@ -167,12 +164,12 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
         in
         List.concat [gammaL; gammaM; gammaR]
       in
-      let* theta = instantiateLeft gamma a' _A in
-      instantiateLeft theta b' (Context.apply theta _B)
+      let* theta = instantiate gamma a' _A in
+      instantiate theta b' (Context.apply theta _B)
   | KindApply (_, _) ->
       (* KindApply isn't user-facing, so we shouldn't ever handle it when
          performing instantiation. *)
-      raise (Failure "instantiateLeft: called with KindApply")
+      raise (Failure "instantiate: called with KindApply")
   | Annotate (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
@@ -187,88 +184,11 @@ and instantiateLeft (gamma : Context.t) (a : string) (_B : Type.t) :
         in
         List.concat [gammaL; gammaM; gammaR]
       in
-      let* theta = instantiateLeft gamma a' _A in
-      instantiateLeft theta b' (Context.apply theta _B)
-
-and instantiateRight (gamma : Context.t) (_A : Type.t) (b : string) :
-    (Context.t, Errors.t) result =
-  let open Primitives in
-  let* gammaL, gammaR = break_apart_at (Unsolved b) gamma in
-  let solveRight (t : Type.t) : (Context.t, Errors.t) result =
-    let* _ = well_formed_type gammaR _A in
-    Ok (List.append gammaL (Solved (b, t) :: gammaR))
-  in
-  match _A with
-  | Constructor _ -> solveRight _A
-  | Variable _ -> solveRight _A
-  | Unsolved b -> (
-      match break_apart_at (Unsolved b) gammaL with
-      | Error _ -> solveRight _A
-      | Ok (gammaLL, gammaLR) ->
-          let gammaL =
-            List.append gammaLL (Solved (b, Unsolved b) :: gammaLR)
-          in
-          let gamma = List.append gammaL (Unsolved b :: gammaR) in
-          Ok gamma)
-  | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
-    ->
-      let a' = fresh_name () in
-      let b' = fresh_name () in
-      let gamma =
-        let gammaM =
-          [
-            Element.Solved (b, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
-          ; Element.Unsolved a'
-          ; Element.Unsolved b'
-          ]
-        in
-        List.concat [gammaL; gammaM; gammaR]
-      in
-      let* theta = instantiateLeft gamma a' _A in
-      instantiateRight theta (Context.apply theta _B) b'
-  | Forall (b, _K, _B) ->
-      let b' = fresh_name () in
-      let _B = Type.substitute b (annotate_type (Unsolved b') _K) _B in
-      scoped_unsolved gamma b' (fun gamma -> instantiateRight gamma _B b')
-  | Apply (_A, _B) ->
-      let a' = fresh_name () in
-      let b' = fresh_name () in
-      let gamma =
-        let gammaM =
-          [
-            Element.Solved (b, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
-          ; Element.Unsolved a'
-          ; Element.Unsolved b'
-          ]
-        in
-        List.concat [gammaL; gammaM; gammaR]
-      in
-      let* theta = instantiateRight gamma _A a' in
-      instantiateRight theta (Context.apply theta _B) b'
-  | KindApply (_, _) ->
-      (* KindApply isn't user-facing, so we shouldn't ever handle it when
-         performing instantiation. *)
-      raise (Failure "instantiateRight: called with KindApply")
-  | Annotate (_A, _B) ->
-      let a' = fresh_name () in
-      let b' = fresh_name () in
-      let gamma =
-        let gammaM =
-          [
-            Element.Solved
-              (b, Type.Annotate (Type.Unsolved a', Type.Unsolved b'))
-          ; Element.Unsolved a'
-          ; Element.Unsolved b'
-          ]
-        in
-        List.concat [gammaL; gammaM; gammaR]
-      in
-      let* theta = instantiateRight gamma _A a' in
-      instantiateRight theta (Context.apply theta _B) b'
+      let* theta = instantiate gamma a' _A in
+      instantiate theta b' (Context.apply theta _B)
 
 and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
     (Context.t, Errors.t) result =
-  let open Primitives in
   match (e, _A) with
   | Literal (Char _), Constructor "Char"
   | Literal (String _), Constructor "String"
@@ -297,11 +217,10 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       scoped gamma (Quantified (a', _K)) (fun gamma -> check gamma e _A)
   | _ ->
       let* theta, _A' = infer gamma e in
-      subtype theta (Context.apply theta _A') (Context.apply theta _A)
+      unify theta (Context.apply theta _A') (Context.apply theta _A)
 
 and infer (gamma : Context.t) (e : _ Expr.t) :
     (Context.t * Type.t, Errors.t) result =
-  let open Primitives in
   match e with
   | Literal (Char _) -> Ok (gamma, t_char)
   | Literal (String _) -> Ok (gamma, t_string)
@@ -315,7 +234,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
             match (inferred_t, current_t) with
             | _, Some current_t ->
                 (* todo: make this rethrow a better error *)
-                let* gamma = subtype gamma inferred_t current_t in
+                let* gamma = unify gamma inferred_t current_t in
                 aux gamma (Some inferred_t) t
             | _, None -> aux gamma (Some inferred_t) t)
         | [] -> (
@@ -374,7 +293,6 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
 
 and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
     (Context.t * Type.t, Errors.t) result =
-  let open Primitives in
   match _A with
   | Forall (a, _K, _A) ->
       let a' = fresh_name () in
@@ -402,7 +320,6 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
 
 and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
     (Context.t, Errors.t) result =
-  let open Primitives in
   match (_T, _K) with
   | Constructor _, Constructor "Type" when is_primitive_type _T -> Ok gamma
   | ( Constructor _
@@ -427,11 +344,10 @@ and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
         (function gamma -> check_kind gamma _T _A)
   | _ ->
       let* theta, _TK = infer_kind gamma _T in
-      subtype theta (Context.apply theta _TK) (Context.apply theta _K)
+      unify theta (Context.apply theta _TK) (Context.apply theta _K)
 
 and infer_kind (gamma : Context.t) (_T : Type.t) :
     (Context.t * Type.t, Errors.t) result =
-  let open Primitives in
   match _T with
   | Constructor _ when is_primitive_type _T -> Ok (gamma, t_type)
   | Constructor _ when is_primitive_type_type _T ->
@@ -475,7 +391,6 @@ and infer_kind (gamma : Context.t) (_T : Type.t) :
       | _ -> failwith "infer_kind: forall binder has no kind")
 
 and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
-  let open Primitives in
   match _K with
   | Forall (a, _K', _K) ->
       let a' = fresh_name () in
