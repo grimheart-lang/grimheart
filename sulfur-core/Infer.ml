@@ -87,6 +87,11 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
     ->
       let* theta = unify gamma a2 a1 in
       unify theta (Context.apply theta b1) (Context.apply theta b2)
+  | Forall (a1, _K1, _A1), Forall (a2, _K2, _A2) ->
+      let a' = fresh_name () in
+      let _A1' = Type.substitute a1 (annotate_type (Unsolved a') _K1) _A1 in
+      let _A2' = Type.substitute a2 (annotate_type (Unsolved a') _K2) _A2 in
+      scoped_unsolved gamma a' (fun gamma -> unify gamma _A1' _A2')
   | _, Forall (b, _K, _B) ->
       let b' = fresh_name () in
       let _B = Type.substitute b (annotate_type (Variable b') _K) _B in
