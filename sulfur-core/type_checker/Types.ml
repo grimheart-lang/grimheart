@@ -2,9 +2,6 @@ open Core_kernel
 open Context
 open Kinds
 open Sulfur_ast
-open Expr
-open Type
-open Primitives
 open Sulfur_errors.Let
 
 (** [fresh_name ()] generates a unique name to avoid collisions. *)
@@ -54,11 +51,12 @@ let scoped_unsolved (context : Context.t) (unsolved : string)
   scoped context (Marker unsolved) (fun context ->
       action (Unsolved unsolved :: context))
 
-let annotate_type (_T : Type.t) (_K : Type.t option) =
+let annotate_type (_T : Type.t) (_K : Type.t option) : Type.t =
   match _K with Some _K -> Annotate (_T, _K) | None -> _T
 
 let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
-    (Context.t, Sulfur_errors.t) result =
+          (Context.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
   match (_A, _B) with
   | Constructor a, Constructor b when String.equal a b ->
       (* todo: perform environment checks here? *)
@@ -93,11 +91,11 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | Unsolved a, _
     when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables _B) a) ->
-      instantiate gamma a _B
+      solve gamma a _B
   | _, Unsolved b
     when Context.mem gamma (Unsolved b)
          && not (Set.mem (Type.free_type_variables _A) b) ->
-      instantiate gamma b _A
+      solve gamma b _A
   | Apply (a1, b1), Apply (a2, b2) ->
       let* gamma = unify gamma a1 a2 in
       unify gamma b1 b2
@@ -109,19 +107,20 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
       unify gamma _T _U
   | _ -> Error (FailedUnification (_A, _B))
 
-and instantiate (gamma : Context.t) (a : string) (_B : Type.t) :
-    (Context.t, Sulfur_errors.t) result =
+and solve (gamma : Context.t) (a : string) (_B : Type.t) :
+      (Context.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
   let* gammaL, gammaR = break_apart_at (Unsolved a) gamma in
-  let solve (t : Type.t) : (Context.t, Sulfur_errors.t) result =
+  let insertSolved (t : Type.t) : (Context.t, Sulfur_errors.t) result =
     let* _ = well_formed_type gammaR _B in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
   match _B with
-  | Constructor _ -> solve _B
-  | Variable _ -> solve _B
+  | Constructor _ -> insertSolved _B
+  | Variable _ -> insertSolved _B
   | Unsolved b -> (
       match break_apart_at (Unsolved b) gammaL with
-      | Error _ -> solve _B
+      | Error _ -> insertSolved _B
       | Ok (gammaLL, gammaLR) ->
           let gammaL =
             List.append gammaLL (Solved (b, Unsolved a) :: gammaLR)
@@ -135,32 +134,32 @@ and instantiate (gamma : Context.t) (a : string) (_B : Type.t) :
       let gamma =
         let gammaM =
           [
-            Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+            Element.Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
           ; Element.Unsolved b'
           ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
-      let* theta = instantiate gamma a' _A in
-      instantiate theta b' (Context.apply theta _B)
+      let* theta = solve gamma a' _A in
+      solve theta b' (Context.apply theta _B)
   | Forall (b, _K, _B) ->
-      scoped gamma (Quantified (b, _K)) (fun gamma -> instantiate gamma b _B)
+      scoped gamma (Quantified (b, _K)) (fun gamma -> solve gamma b _B)
   | Apply (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
       let gamma =
         let gammaM =
           [
-            Element.Solved (a, Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
+            Element.Solved (a, Type.Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
           ; Element.Unsolved a'
           ; Element.Unsolved b'
           ]
         in
         List.concat [gammaL; gammaM; gammaR]
       in
-      let* theta = instantiate gamma a' _A in
-      instantiate theta b' (Context.apply theta _B)
+      let* theta = solve gamma a' _A in
+      solve theta b' (Context.apply theta _B)
   | KindApply (_, _) ->
       (* KindApply isn't user-facing, so we shouldn't ever handle it when
          performing instantiation. *)
@@ -179,11 +178,12 @@ and instantiate (gamma : Context.t) (a : string) (_B : Type.t) :
         in
         List.concat [gammaL; gammaM; gammaR]
       in
-      let* theta = instantiate gamma a' _A in
-      instantiate theta b' (Context.apply theta _B)
+      let* theta = solve gamma a' _A in
+      solve theta b' (Context.apply theta _B)
 
 and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
-    (Context.t, Sulfur_errors.t) result =
+      (Context.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
   match (e, _A) with
   | Literal (Char _), Constructor "Char"
   | Literal (String _), Constructor "String"
@@ -215,7 +215,8 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       unify theta (Context.apply theta _A') (Context.apply theta _A)
 
 and infer (gamma : Context.t) (e : _ Expr.t) :
-    (Context.t * Type.t, Sulfur_errors.t) result =
+      (Context.t * Type.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
   match e with
   | Literal (Char _) -> Ok (gamma, t_char)
   | Literal (String _) -> Ok (gamma, t_string)
@@ -223,7 +224,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
   | Literal (Float _) -> Ok (gamma, t_float)
   | Literal (Array _As) ->
       let a = fresh_name () in
-      let rec aux (gamma : Context.t) (current_t : Type.t option) = function
+      let rec aux (gamma : Context.t) (current_t : Type.t option) : _ -> (Context.t * Type.t, Sulfur_errors.t) result = function
         | h :: t -> (
             let* gamma, inferred_t = infer gamma h in
             match (inferred_t, current_t) with
@@ -268,7 +269,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
           (fun gamma ->
             check gamma (Expr.substitute v (Variable v') e) (Unsolved b'))
       in
-      Ok (delta, Sugar.fn (Unsolved a') (Unsolved b'))
+      Ok (delta, Type.Sugar.fn (Unsolved a') (Unsolved b'))
   | Apply (f, x) ->
       let* theta, t = infer gamma f in
       infer_apply theta (Context.apply theta t) x
@@ -287,7 +288,8 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
       infer (Variable (v', t) :: gamma) (Expr.substitute v (Variable v') e2)
 
 and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
-    (Context.t * Type.t, Sulfur_errors.t) result =
+      (Context.t * Type.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
   match _A with
   | Forall (a, _K, _A) ->
       let a' = fresh_name () in
@@ -299,14 +301,14 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
       let* gammaL, gammaR = break_apart_at (Unsolved a') gamma in
       let gammaM =
         [
-          Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
+          Element.Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
         ; Element.Unsolved a'
         ; Element.Unsolved b'
         ]
       in
       let gamma = List.concat [gammaL; gammaM; gammaR] in
       let* delta = check gamma e (Unsolved a') in
-      Ok (delta, Unsolved b')
+      Ok (delta, Type.Unsolved b')
   | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
     ->
       let* delta = check gamma e _A in
@@ -322,7 +324,7 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
       incr i;
       String.of_char (Char.of_int_exn (97 + (!i mod 26)))
   in
-  let algebra element poly_type =
+  let algebra (element : Element.t) (poly_type : Type.t) : Type.t =
     match element with
     | Element.Unsolved u when Set.mem (Type.free_type_variables poly_type) u ->
         let u' = fresh_variable () in
