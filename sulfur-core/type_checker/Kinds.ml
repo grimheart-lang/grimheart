@@ -48,9 +48,33 @@ and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
   (* FALLTHROUGH *)
   | _ -> failwith "unify: FALLTHROUGH: todo: raise a more appropriate error"
 
-and promote (_gamma : Context.t) (_a : string) (_T : Type.t) :
+and promote (ctx : Context.t) (a : string) (_T : Type.t) :
     (Context.t * Type.t, Sulfur_errors.t) result =
-  failwith "promote: undefined"
+  match _T with
+  | Unsolved b ->
+      let b_appears_first =
+        let discard_up_to_a (ctx : Context.t) : Context.t =
+          let rec aux = function
+            | [] -> []
+            | Context.Element.Unsolved a' :: t when String.equal a a' -> t
+            | _ :: t -> aux t
+          in
+          aux ctx
+        in
+        let b_is_member (ctx : Context.t) : bool =
+          let rec aux = function
+            | [] -> false
+            | Context.Element.Unsolved b' :: _ when String.equal b b' -> true
+            | _ :: t -> aux t
+          in
+          aux ctx
+        in
+        b_is_member (discard_up_to_a ctx)
+      in
+      if b_appears_first
+      then Ok (ctx, _T)
+      else failwith "promote: todo: make sure to promote b's kind."
+  | _ -> Ok (ctx, _T)
 
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
     (Context.t, Sulfur_errors.t) result =
