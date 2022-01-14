@@ -2,13 +2,9 @@ open Sulfur_ast
 open Sulfur_core
 
 module Test_utils = struct
-  let pp_type_error formatter = function
-    | Ok t -> Type.pp formatter t
-    | Error e -> Infer.Error.pp formatter e
-
   let testable_type_error =
-    Alcotest.testable pp_type_error
-      (Result.equal ~ok:Type.equal ~error:Infer.Error.equal)
+    let open Alcotest in
+    result (testable Type.pp Type.equal) (testable Errors.pp Errors.equal)
 
   let infer_type_check_test_case annotation speed expected value =
     let check () =
@@ -24,7 +20,7 @@ let () =
   let open Type.Primitives in
   run "Core"
     [
-      ( "infer-literal"
+      ( "infer-literal-scalar"
       , [
           infer_type_check_test_case "infer char literal" `Quick t_char
             (Expr.Literal (Char 'a'))
@@ -34,11 +30,33 @@ let () =
             (Expr.Literal (Int 0))
         ; infer_type_check_test_case "infer float literal" `Quick t_float
             (Expr.Literal (Float 0.))
-          (* ; infer_type_check_test_case "infer array literal" `Quick *)
-          (*     (Type.Sugar.ap t_array t_int) *)
-          (*     (Expr.Literal (Literal.Array [Expr.Literal (Int 0)])) *)
-          (* ; infer_type_check_test_case "infer object literal" `Quick *)
-          (*     (Type.Sugar.ap (Type.Constructor "Object") t_int) *)
-          (*     (Expr.Literal (Literal.Object [("a", Expr.Literal (Int 0))])) *)
+        ] )
+    ; ( "infer-literal-array-scalar"
+      , let make (t, l) =
+          match t with
+          | Type.Constructor t ->
+              infer_type_check_test_case
+                (Printf.sprintf "infer array %s literal"
+                   (String.lowercase_ascii t))
+                `Quick
+                (* todo: this annotation gets erased in the future *)
+                (Apply (t_array, Annotate (Type.Constructor t, t_type)))
+                (Expr.Literal (Literal.Array [Expr.Literal l; Expr.Literal l]))
+          | _ -> failwith "not a constructor"
+        in
+        List.map make
+          [
+            (t_char, Char 'a')
+          ; (t_string, String "a")
+          ; (t_int, Int 0)
+          ; (t_float, Float 0.)
+          ] )
+    ; ( "infer-literal-array-empty"
+      , [
+          infer_type_check_test_case "infer empty array literal" `Quick
+            (* todo: this annotation gets erased in the future. make sure to
+               shift it inside the forall annotation instead. *)
+            (Forall ("a", None, Apply (t_array, Annotate (Variable "a", t_type))))
+            (Expr.Literal (Literal.Array []))
         ] )
     ]
