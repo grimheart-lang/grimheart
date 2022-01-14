@@ -239,12 +239,9 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
                tests would have to explicitly look for annotations... for
                now. *)
             match current_t with
-            | Some current_t ->
-                Ok (gamma, Apply (t_array, Annotate (current_t, t_type)))
+            | Some current_t -> Ok (gamma, Apply (t_array, current_t))
             | None ->
-                Ok
-                  ( Unsolved (a, t_type) :: gamma
-                  , Apply (t_array, Annotate (Unsolved a, t_type)) ))
+                Ok (Unsolved (a, t_type) :: gamma, Apply (t_array, Unsolved a)))
       in
       aux gamma None _As
   | Literal (Object _) ->
@@ -326,9 +323,9 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
   in
   let algebra (element : Context.Element.t) (poly_type : Type.t) : Type.t =
     match element with
-    | Unsolved u when Set.mem (Type.free_type_variables poly_type) u ->
+    | Unsolved (u, k) when Set.mem (Type.free_type_variables poly_type) u ->
         let u' = fresh_variable () in
-        Forall (u', None, Type.substitute u (Variable u') poly_type)
+        Forall (u', Some k, Type.substitute u (Variable u') poly_type)
     | _ -> poly_type
   in
   Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))

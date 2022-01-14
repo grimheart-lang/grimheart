@@ -41,8 +41,7 @@ let () =
                 (Printf.sprintf "infer array %s literal"
                    (String.lowercase_ascii t))
                 `Quick
-                (* todo: this annotation gets erased in the future *)
-                (Apply (t_array, Annotate (Type.Constructor t, t_type)))
+                (Apply (t_array, Type.Constructor t))
                 (Expr.Literal (Literal.Array [Expr.Literal l; Expr.Literal l]))
           | _ -> failwith "not a constructor"
         in
@@ -56,9 +55,7 @@ let () =
     ; ( "infer-literal-array-empty"
       , [
           infer_type_check_test_case "infer empty array literal" `Quick
-            (* todo: this annotation gets erased in the future. make sure to
-               shift it inside the forall annotation instead. *)
-            (Forall ("a", None, Apply (t_array, Annotate (Variable "a", t_type))))
+            (Forall ("a", Some t_type, Apply (t_array, Variable "a")))
             (Expr.Literal (Literal.Array []))
         ] )
     ]
