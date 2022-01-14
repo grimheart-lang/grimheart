@@ -56,7 +56,7 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
         let discard_up_to_a (ctx : Context.t) : Context.t =
           let rec aux = function
             | [] -> []
-            | Context.Element.Unsolved a' :: t when String.equal a a' -> t
+            | Context.Element.Unsolved (a', _) :: t when String.equal a a' -> t
             | _ :: t -> aux t
           in
           aux ctx
@@ -64,7 +64,8 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
         let b_is_member (ctx : Context.t) : bool =
           let rec aux = function
             | [] -> false
-            | Context.Element.Unsolved b' :: _ when String.equal b b' -> true
+            | Context.Element.Unsolved (b', _) :: _ when String.equal b b' ->
+                true
             | _ :: t -> aux t
           in
           aux ctx
@@ -86,8 +87,8 @@ and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
       | [] -> failwith "unify_unsolved: todo: raise a more appropriate error"
       | h :: t -> (
           match h with
-          | Context.Element.Unsolved a' when String.equal a a' ->
-              Ok (List.rev l, failwith "todo: add kinds to unsolved elements", t)
+          | Context.Element.Unsolved (a', k) when String.equal a a' ->
+              Ok (List.rev l, k, t)
           | _ -> aux (h :: l) t)
     in
     aux [] ctx

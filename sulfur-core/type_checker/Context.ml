@@ -8,7 +8,7 @@ module Element = struct
   type t =
     | Variable of string * Type.t
     | Quantified of string * Type.t option
-    | Unsolved of string
+    | Unsolved of string * Type.t
     | Solved of string * Type.t
     | Marker of string
   [@@deriving eq]
@@ -57,7 +57,8 @@ let break_apart_at_unsolved (a : string) (context : t) :
     (t * t, Sulfur_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
     | [] -> Error FailedToBreakApart
-    | Unsolved a' :: rest when String.equal a a' -> Ok (List.rev collected, rest)
+    | Unsolved (a', _) :: rest when String.equal a a' ->
+        Ok (List.rev collected, rest)
     | current :: rest -> aux (current :: collected) rest
   in
   aux [] context

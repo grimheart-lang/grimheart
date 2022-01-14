@@ -5,7 +5,7 @@ module Element : sig
   type t =
     | Variable of string * Type.t
     | Quantified of string * Type.t option
-    | Unsolved of string
+    | Unsolved of string * Type.t
     | Solved of string * Type.t
     | Marker of string
 

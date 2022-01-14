@@ -23,7 +23,7 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
       else Error (IllFormedType _T)
   | Unsolved u -> (
       let predicate : Context.Element.t -> bool = function
-        | (Unsolved u' | Solved (u', _)) when String.equal u u' -> true
+        | (Unsolved (u', _) | Solved (u', _)) when String.equal u u' -> true
         | _ -> false
       in
       match List.find context ~f:predicate with
@@ -47,7 +47,7 @@ let scoped_unsolved (context : Context.t) (unsolved : string)
     (action : Context.t -> ('a, Sulfur_errors.t) result) :
     ('a, Sulfur_errors.t) result =
   scoped context (Marker unsolved) (fun context ->
-      action (Unsolved unsolved :: context))
+      action (Unsolved (unsolved, Type.Primitives.t_type) :: context))
 
 let annotate_type (_T : Type.t) (_K : Type.t option) : Type.t =
   match _K with Some _K -> Annotate (_T, _K) | None -> _T
@@ -65,7 +65,7 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
       Ok gamma
   (* we only need these variables to be unsolved *)
   | Unsolved a, Unsolved b
-    when String.equal a b && Context.mem gamma (Unsolved a) ->
+    when String.equal a b && Context.mem gamma (Unsolved (a, t_type)) ->
       Ok gamma
   (* function application is funky *)
   | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
@@ -87,11 +87,11 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
       let _A = Type.substitute a (annotate_type (Unsolved a') _K) _A in
       scoped_unsolved gamma a' (fun gamma -> unify gamma _A _B)
   | Unsolved a, _
-    when Context.mem gamma (Unsolved a)
+    when Context.mem gamma (Unsolved (a, t_type))
          && not (Set.mem (Type.free_type_variables _B) a) ->
       solve gamma a _B
   | _, Unsolved b
-    when Context.mem gamma (Unsolved b)
+    when Context.mem gamma (Unsolved (b, t_type))
          && not (Set.mem (Type.free_type_variables _A) b) ->
       solve gamma b _A
   | Apply (a1, b1), Apply (a2, b2) ->
@@ -125,7 +125,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
           let gammaL =
             List.append gammaLL (Solved (b, Unsolved a) :: gammaLR)
           in
-          let gamma = List.append gammaL (Unsolved a :: gammaR) in
+          let gamma = List.append gammaL (Unsolved (a, t_type) :: gammaR) in
           Ok gamma)
   | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
     ->
@@ -135,8 +135,8 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
         let gammaM : Context.t =
           [
             Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
-          ; Unsolved a'
-          ; Unsolved b'
+          ; Unsolved (a', t_type)
+          ; Unsolved (b', t_type)
           ]
         in
         List.concat [gammaL; gammaM; gammaR]
@@ -152,8 +152,8 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
         let gammaM : Context.t =
           [
             Solved (a, Type.Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
-          ; Unsolved a'
-          ; Unsolved b'
+          ; Unsolved (a', t_type)
+          ; Unsolved (b', t_type)
           ]
         in
         List.concat [gammaL; gammaM; gammaR]
@@ -171,8 +171,8 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
         let gammaM : Context.t =
           [
             Solved (a, Type.Annotate (Type.Unsolved a', Type.Unsolved b'))
-          ; Unsolved a'
-          ; Unsolved b'
+          ; Unsolved (a', t_type)
+          ; Unsolved (b', t_type)
           ]
         in
         List.concat [gammaL; gammaM; gammaR]
@@ -243,7 +243,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
                 Ok (gamma, Apply (t_array, Annotate (current_t, t_type)))
             | None ->
                 Ok
-                  ( Unsolved a :: gamma
+                  ( Unsolved (a, t_type) :: gamma
                   , Apply (t_array, Annotate (Unsolved a, t_type)) ))
       in
       aux gamma None _As
@@ -264,7 +264,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
       let* delta =
         let v' = fresh_name () in
         scoped
-          (Unsolved b' :: Unsolved a' :: gamma)
+          (Unsolved (b', t_type) :: Unsolved (a', t_type) :: gamma)
           (Variable (v', Unsolved a'))
           (fun gamma ->
             check gamma (Expr.substitute v (Variable v') e) (Unsolved b'))
@@ -294,7 +294,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
   | Forall (a, _K, _A) ->
       let a' = fresh_name () in
       let _A = Type.substitute a (annotate_type (Unsolved a') _K) _A in
-      infer_apply (Unsolved a' :: gamma) _A e
+      infer_apply (Unsolved (a', t_type) :: gamma) _A e
   | Unsolved a ->
       let a' = fresh_name () in
       let b' = fresh_name () in
@@ -302,8 +302,8 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
       let gammaM : Context.t =
         [
           Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
-        ; Unsolved a'
-        ; Unsolved b'
+        ; Unsolved (a', t_type)
+        ; Unsolved (b', t_type)
         ]
       in
       let gamma = List.concat [gammaL; gammaM; gammaR] in
