@@ -28,19 +28,6 @@ val infer_apply :
 (** [infer_apply gamma _A e] infers the type of the application of some type _A
     to an expression e. *)
 
-val check_kind :
-  Context.t -> Type.t -> Type.t -> (Context.t, Sulfur_errors.t) result
-(** [check_kind gamma _T _K] checks whether some type _T has a kind _K. *)
-
-val infer_kind :
-  Context.t -> Type.t -> (Context.t * Type.t, Sulfur_errors.t) result
-(** [infer_kind gamma _T] infers the kind of some type _T. *)
-
-val infer_apply_kind :
-  Context.t -> Type.t -> Type.t -> (Context.t * Type.t, Sulfur_errors.t) result
-(** [infer_apply_kind gamma _K _X] infers the type of the application of the
-    kind _K to some type _X. *)
-
 val infer_type_with :
   Context.t -> unit Expr.t -> (Type.t, Sulfur_errors.t) result
 (** [infer_type_with context e] infers the type of some expression e using the

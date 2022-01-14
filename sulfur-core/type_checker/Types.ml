@@ -1,5 +1,6 @@
 open Core_kernel
 open Context
+open Kinds
 open Sulfur_ast
 open Expr
 open Type
@@ -47,22 +48,10 @@ let scoped (context : Context.t) (element : Element.t)
   let* context' = action (element :: context) in
   Ok (Context.discard_up_to element context')
 
-let scoped' (context : Context.t) (element : Element.t)
-    (action : Context.t -> (Context.t * 'a, Sulfur_errors.t) result) :
-    (Context.t * 'a, Sulfur_errors.t) result =
-  let* context', result = action (element :: context) in
-  Ok (Context.discard_up_to element context', result)
-
 let scoped_unsolved (context : Context.t) (unsolved : string)
     (action : Context.t -> ('a, Sulfur_errors.t) result) :
     ('a, Sulfur_errors.t) result =
   scoped context (Marker unsolved) (fun context ->
-      action (Unsolved unsolved :: context))
-
-let scoped_unsolved' (context : Context.t) (unsolved : string)
-    (action : Context.t -> (Context.t * 'a, Sulfur_errors.t) result) :
-    (Context.t * 'a, Sulfur_errors.t) result =
-  scoped' context (Marker unsolved) (fun context ->
       action (Unsolved unsolved :: context))
 
 let annotate_type (_T : Type.t) (_K : Type.t option) =
@@ -323,104 +312,6 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
       let* delta = check gamma e _A in
       Ok (delta, _B)
   | _ -> Error (FailedInfererence (e, _A))
-
-and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
-    (Context.t, Sulfur_errors.t) result =
-  match (_T, _K) with
-  | Constructor _, Constructor "Type" when is_primitive_type _T -> Ok gamma
-  | ( Constructor _
-    , Apply (Apply (t_function', Constructor "Type"), Constructor "Type") )
-    when Type.equal t_function t_function' && is_primitive_type_type _T ->
-      Ok gamma
-  | ( Constructor "Function"
-    , Apply
-        ( Apply (Constructor "Function", Constructor "Type")
-        , Apply
-            ( Apply (Constructor "Function", Constructor "Type")
-            , Constructor "Type" ) ) ) ->
-      Ok gamma
-  | Constructor _, _ ->
-      raise
-        (Failure "todo: arbitrary constructors should look up the environment")
-  | _, Forall (a, _K', _A) ->
-      let a' = fresh_name () in
-      let _A = Type.substitute a (annotate_type (Variable a') _K') _A in
-      scoped gamma
-        (Quantified (a', _K'))
-        (function gamma -> check_kind gamma _T _A)
-  | _ ->
-      let* theta, _TK = infer_kind gamma _T in
-      unify theta (Context.apply theta _TK) (Context.apply theta _K)
-
-and infer_kind (gamma : Context.t) (_T : Type.t) :
-    (Context.t * Type.t, Sulfur_errors.t) result =
-  match _T with
-  | Constructor _ when is_primitive_type _T -> Ok (gamma, t_type)
-  | Constructor _ when is_primitive_type_type _T ->
-      Ok (gamma, Sugar.fn t_type t_type)
-  | Constructor "Function" ->
-      Ok (gamma, Sugar.fn t_type (Sugar.fn t_type t_type))
-  | Constructor _ ->
-      raise (Failure "Kind synthesis failed for arbitrary constructors.")
-  | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
-    ->
-      let* gamma = check_kind gamma _A t_type in
-      let* gamma = check_kind gamma _B t_type in
-      Ok (gamma, t_type)
-  | Forall (a, _K, _A) ->
-      let a' = fresh_name () in
-      let _A = Type.substitute a (annotate_type (Unsolved a') _K) _A in
-      scoped_unsolved' gamma a' (fun gamma -> infer_kind gamma _A)
-  | Unsolved u ->
-      let u' = fresh_name () in
-      Ok (Unsolved u' :: gamma, Type.substitute u (Unsolved u') _T)
-  | Variable v -> (
-      let find_variable : Element.t -> Type.t option = function
-        | Variable (v', t) when String.equal v v' -> Some t
-        | _ -> None
-      in
-      match List.find_map gamma ~f:find_variable with
-      | Some t -> Ok (gamma, t)
-      | None -> Error (UnknownVariable v))
-  | Apply (_A, _B) ->
-      let* gamma, _K = infer_kind gamma _A in
-      infer_apply_kind gamma _K _B
-  | Annotate (_A, _B) ->
-      let* gamma = check_kind gamma _A _B in
-      Ok (gamma, _B)
-  | KindApply (_A, _B) -> (
-      let* gamma, _A_K = infer_kind gamma _A in
-      match _A_K with
-      | Forall (a, Some k, t) ->
-          let* gamma = check_kind gamma _B k in
-          Ok (gamma, Type.substitute a _B t)
-      | _ -> failwith "infer_kind: forall binder has no kind")
-
-and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
-  match _K with
-  | Forall (a, _K', _K) ->
-      let a' = fresh_name () in
-      let _K = Type.substitute a (annotate_type (Unsolved a') _K') _K in
-      infer_apply_kind (Unsolved a' :: gamma) _K _X
-  | Unsolved a ->
-      let a' = fresh_name () in
-      let b' = fresh_name () in
-      let* gammaL, gammaR = break_apart_at (Unsolved a) gamma in
-      let gammaM =
-        [
-          Element.Solved (a, Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
-        ; Element.Unsolved a'
-        ; Element.Unsolved b'
-        ]
-      in
-      let gamma = List.concat [gammaL; gammaM; gammaR] in
-      let* delta = check_kind gamma _X (Unsolved a') in
-      Ok (delta, Unsolved b')
-  | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
-    ->
-      let* delta = check_kind gamma _X _A in
-      Ok (delta, _B)
-  | _ -> raise (Failure "Impossible case in synth_app_kind")
 
 let infer_type_with (context : Context.t) (e : _ Expr.t) :
     (Type.t, Sulfur_errors.t) result =

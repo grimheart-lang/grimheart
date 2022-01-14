@@ -11,7 +11,7 @@ module Test_utils = struct
   let infer_type_check_test_case annotation speed expected value =
     let check () =
       Alcotest.check testable_type_error annotation (Ok expected)
-        (Infer.infer_type value)
+        (Types.infer_type value)
     in
     Alcotest.test_case annotation speed check
 end
