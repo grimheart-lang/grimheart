@@ -109,7 +109,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Sulfur_errors.t) result =
   let open Type.Primitives in
   let* (gammaL, gammaR) : Context.t * Context.t =
-    Context.break_apart_at (Unsolved a) gamma
+    Context.break_apart_at_unsolved a gamma
   in
   let insertSolved (t : Type.t) : (Context.t, Sulfur_errors.t) result =
     let* _ = well_formed_type gammaR _B in
@@ -119,7 +119,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
   | Constructor _ -> insertSolved _B
   | Variable _ -> insertSolved _B
   | Unsolved b -> (
-      match Context.break_apart_at (Unsolved b) gammaL with
+      match Context.break_apart_at_unsolved b gammaL with
       | Error _ -> insertSolved _B
       | Ok (gammaLL, gammaLR) ->
           let gammaL =
@@ -298,7 +298,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
   | Unsolved a ->
       let a' = fresh_name () in
       let b' = fresh_name () in
-      let* gammaL, gammaR = Context.break_apart_at (Unsolved a') gamma in
+      let* gammaL, gammaR = Context.break_apart_at_unsolved a' gamma in
       let gammaM : Context.t =
         [
           Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
