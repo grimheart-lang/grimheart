@@ -98,10 +98,10 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
       let* gamma = unify gamma a1 a2 in
       unify gamma b1 b2
   | _U, Annotate (_T, _K) ->
-      let* gamma = Kinds.check_kind gamma _U _K in
+      let* gamma, _ = Kinds.check gamma _U _K in
       unify gamma _U _T
   | Annotate (_T, _K), _U ->
-      let* gamma = Kinds.check_kind gamma _U _K in
+      let* gamma, _ = Kinds.check gamma _U _K in
       unify gamma _T _U
   | _ -> Error (FailedUnification (_A, _B))
 
