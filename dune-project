@@ -27,6 +27,8 @@
  (depends
   ("alcotest"
    (and :with-test (>= "1.5.0")))
+  ("bisect_ppx"
+   (and :with-test (>= "2.7.0")))
   ("core_kernel"
    (>= "v0.14.2"))
   ("ppx_deriving"
