@@ -8,8 +8,7 @@ val well_formed_type : Context.t -> Type.t -> (unit, Sulfur_errors.t) result
 val unify : Context.t -> Type.t -> Type.t -> (Context.t, Sulfur_errors.t) result
 (** [subtype _A _B] unifies the type _A with _B. *)
 
-val solve :
-  Context.t -> string -> Type.t -> (Context.t, Sulfur_errors.t) result
+val solve : Context.t -> string -> Type.t -> (Context.t, Sulfur_errors.t) result
 (** [solve a _A] attempts to solve the existential a with the type _A. *)
 
 val check :
