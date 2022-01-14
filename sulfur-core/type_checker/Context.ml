@@ -2,7 +2,7 @@
 open Core_kernel
 
 open Sulfur_ast
-open Errors
+open Sulfur_errors
 
 module Element = struct
   type t =
@@ -54,7 +54,7 @@ let discard_up_to (element : Element.t) (context : t) : t =
   aux context
 
 let break_apart_at (element : Element.t) (context : t) :
-    (t * t, Errors.t) result =
+    (t * t, Sulfur_errors.t) result =
   let rec aux collected = function
     | [] -> Error FailedToBreakApart
     | current :: rest ->

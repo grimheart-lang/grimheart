@@ -4,7 +4,7 @@ open Sulfur_ast
 open Expr
 open Type
 open Primitives
-open Errors.Let
+open Sulfur_errors.Let
 
 (** [fresh_name ()] generates a unique name to avoid collisions. *)
 let fresh_name : unit -> string =
@@ -14,7 +14,7 @@ let fresh_name : unit -> string =
     "t" ^ string_of_int !i
 
 let rec well_formed_type (context : Context.t) (_T : Type.t) :
-    (unit, Errors.t) result =
+    (unit, Sulfur_errors.t) result =
   match _T with
   | Constructor _ -> Ok ()
   | Variable v ->
@@ -42,25 +42,26 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
       Ok ()
 
 let scoped (context : Context.t) (element : Element.t)
-    (action : Context.t -> (Context.t, Errors.t) result) :
-    (Context.t, Errors.t) result =
+    (action : Context.t -> (Context.t, Sulfur_errors.t) result) :
+    (Context.t, Sulfur_errors.t) result =
   let* context' = action (element :: context) in
   Ok (Context.discard_up_to element context')
 
 let scoped' (context : Context.t) (element : Element.t)
-    (action : Context.t -> (Context.t * 'a, Errors.t) result) :
-    (Context.t * 'a, Errors.t) result =
+    (action : Context.t -> (Context.t * 'a, Sulfur_errors.t) result) :
+    (Context.t * 'a, Sulfur_errors.t) result =
   let* context', result = action (element :: context) in
   Ok (Context.discard_up_to element context', result)
 
 let scoped_unsolved (context : Context.t) (unsolved : string)
-    (action : Context.t -> ('a, Errors.t) result) : ('a, Errors.t) result =
+    (action : Context.t -> ('a, Sulfur_errors.t) result) :
+    ('a, Sulfur_errors.t) result =
   scoped context (Marker unsolved) (fun context ->
       action (Unsolved unsolved :: context))
 
 let scoped_unsolved' (context : Context.t) (unsolved : string)
-    (action : Context.t -> (Context.t * 'a, Errors.t) result) :
-    (Context.t * 'a, Errors.t) result =
+    (action : Context.t -> (Context.t * 'a, Sulfur_errors.t) result) :
+    (Context.t * 'a, Sulfur_errors.t) result =
   scoped' context (Marker unsolved) (fun context ->
       action (Unsolved unsolved :: context))
 
@@ -68,7 +69,7 @@ let annotate_type (_T : Type.t) (_K : Type.t option) =
   match _K with Some _K -> Annotate (_T, _K) | None -> _T
 
 let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
-    (Context.t, Errors.t) result =
+    (Context.t, Sulfur_errors.t) result =
   match (_A, _B) with
   | Constructor a, Constructor b when String.equal a b ->
       (* todo: perform environment checks here? *)
@@ -120,9 +121,9 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | _ -> Error (FailedUnification (_A, _B))
 
 and instantiate (gamma : Context.t) (a : string) (_B : Type.t) :
-    (Context.t, Errors.t) result =
+    (Context.t, Sulfur_errors.t) result =
   let* gammaL, gammaR = break_apart_at (Unsolved a) gamma in
-  let solve (t : Type.t) : (Context.t, Errors.t) result =
+  let solve (t : Type.t) : (Context.t, Sulfur_errors.t) result =
     let* _ = well_formed_type gammaR _B in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
@@ -193,7 +194,7 @@ and instantiate (gamma : Context.t) (a : string) (_B : Type.t) :
       instantiate theta b' (Context.apply theta _B)
 
 and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
-    (Context.t, Errors.t) result =
+    (Context.t, Sulfur_errors.t) result =
   match (e, _A) with
   | Literal (Char _), Constructor "Char"
   | Literal (String _), Constructor "String"
@@ -225,7 +226,7 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       unify theta (Context.apply theta _A') (Context.apply theta _A)
 
 and infer (gamma : Context.t) (e : _ Expr.t) :
-    (Context.t * Type.t, Errors.t) result =
+    (Context.t * Type.t, Sulfur_errors.t) result =
   match e with
   | Literal (Char _) -> Ok (gamma, t_char)
   | Literal (String _) -> Ok (gamma, t_string)
@@ -297,7 +298,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
       infer (Variable (v', t) :: gamma) (Expr.substitute v (Variable v') e2)
 
 and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
-    (Context.t * Type.t, Errors.t) result =
+    (Context.t * Type.t, Sulfur_errors.t) result =
   match _A with
   | Forall (a, _K, _A) ->
       let a' = fresh_name () in
@@ -324,7 +325,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
   | _ -> Error (FailedInfererence (e, _A))
 
 and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
-    (Context.t, Errors.t) result =
+    (Context.t, Sulfur_errors.t) result =
   match (_T, _K) with
   | Constructor _, Constructor "Type" when is_primitive_type _T -> Ok gamma
   | ( Constructor _
@@ -352,7 +353,7 @@ and check_kind (gamma : Context.t) (_T : Type.t) (_K : Type.t) :
       unify theta (Context.apply theta _TK) (Context.apply theta _K)
 
 and infer_kind (gamma : Context.t) (_T : Type.t) :
-    (Context.t * Type.t, Errors.t) result =
+    (Context.t * Type.t, Sulfur_errors.t) result =
   match _T with
   | Constructor _ when is_primitive_type _T -> Ok (gamma, t_type)
   | Constructor _ when is_primitive_type_type _T ->
@@ -422,7 +423,7 @@ and infer_apply_kind (gamma : Context.t) (_K : Type.t) (_X : Type.t) =
   | _ -> raise (Failure "Impossible case in synth_app_kind")
 
 let infer_type_with (context : Context.t) (e : _ Expr.t) :
-    (Type.t, Errors.t) result =
+    (Type.t, Sulfur_errors.t) result =
   let* delta, poly_type = infer context e in
   let fresh_variable =
     let i = ref (-1) in
@@ -439,4 +440,5 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
   in
   Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
 
-let infer_type : _ Expr.t -> (Type.t, Errors.t) result = infer_type_with []
+let infer_type : _ Expr.t -> (Type.t, Sulfur_errors.t) result =
+  infer_type_with []
