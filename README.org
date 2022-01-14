@@ -21,14 +21,19 @@ x f = (f 42, f "meaning of life")
 This project uses =dune= and =opam=. To create a development environment, create a local =opam= switch.
 #+begin_src sh
 # This command will take some time
-$ opam switch create -y 4.13.1 ./ --deps-only
+$ make dev-switch
 #+end_src
 
-Once the dependencies are installed, you can now run =dune= commands for development. Additionally,
-=utop= and =odoc= can also be installed to provide a prompt and provide documentation respectively.
+Once the dependencies are installed, you can now run =dune= commands for development.
 #+begin_src sh
-$ opam install utop
-$ opam install odoc
+# Build the project
+$ make build
+
+# Test the project
+$ make test
+
+# Generate coverage report
+$ make coverage
 #+end_src
 
 ** References
