@@ -11,6 +11,9 @@
 # ocamlbuild working directory
 _build/
 
+# bisect_ppx working directory
+_coverage/
+
 # ocamlbuild targets
 *.byte
 *.native
