@@ -2,7 +2,7 @@ open Core_kernel
 open Sulfur_ast
 
 type t =
-  | FailedSubtyping of Type.t * Type.t
+  | FailedUnification of Type.t * Type.t
   | FailedChecking of unit Expr.t * Type.t
   | FailedInfererence of unit Expr.t * Type.t
   | FailedInstantiation of string * Type.t
