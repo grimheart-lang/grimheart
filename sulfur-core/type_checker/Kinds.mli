@@ -21,10 +21,8 @@ val infer_apply :
   -> Sulfur_ast.Type.t
   -> (Context.t * Sulfur_ast.Type.t, Sulfur_errors.t) result
 
-val infer_elaborated :
-     Context.t
-  -> Sulfur_ast.Type.t
-  -> (Context.t * Sulfur_ast.Type.t, Sulfur_errors.t) result
+val elaborate :
+  Context.t -> Sulfur_ast.Type.t -> (Sulfur_ast.Type.t, Sulfur_errors.t) result
 
 val unify :
      Context.t
