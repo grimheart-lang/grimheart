@@ -26,6 +26,8 @@ val discard_up_to : Element.t -> t -> t
 (** [discard_up_to element context] discards all elements up to the provided
     element in the provided context. *)
 
-val break_apart_at_unsolved : string -> t -> (t * t, Sulfur_errors.t) result
+val break_apart_at_unsolved :
+  string -> t -> (t * Type.t * t, Sulfur_errors.t) result
 (** [break_apart_at_unsolved unsolved context] breaks the context to its left
-    and right components relative to an unsolved variable. *)
+    and right components relative to an unsolved variable, and also returns its
+    kind. *)

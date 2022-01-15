@@ -108,7 +108,7 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
 and solve (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Sulfur_errors.t) result =
   let open Type.Primitives in
-  let* (gammaL, gammaR) : Context.t * Context.t =
+  let* (gammaL, _, gammaR) : Context.t * Type.t * Context.t =
     Context.break_apart_at_unsolved a gamma
   in
   let insertSolved (t : Type.t) : (Context.t, Sulfur_errors.t) result =
@@ -121,7 +121,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
   | Unsolved b -> (
       match Context.break_apart_at_unsolved b gammaL with
       | Error _ -> insertSolved _B
-      | Ok (gammaLL, gammaLR) ->
+      | Ok (gammaLL, _, gammaLR) ->
           let gammaL =
             List.append gammaLL (Solved (b, Unsolved a) :: gammaLR)
           in
@@ -295,7 +295,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
   | Unsolved a ->
       let a' = fresh_name () in
       let b' = fresh_name () in
-      let* gammaL, gammaR = Context.break_apart_at_unsolved a' gamma in
+      let* gammaL, _, gammaR = Context.break_apart_at_unsolved a' gamma in
       let gammaM : Context.t =
         [
           Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
