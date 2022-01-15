@@ -80,19 +80,7 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
     (Context.t, Sulfur_errors.t) result =
   let* ctx, p2 = promote ctx a p1 in
-  let* ctx2, w1, ctx1 =
-    let rec aux (l : Context.t) :
-        Context.t -> (Context.t * Type.t * Context.t, Sulfur_errors.t) result =
-      function
-      | [] -> failwith "unify_unsolved: todo: raise a more appropriate error"
-      | h :: t -> (
-          match h with
-          | Context.Element.Unsolved (a', k) when String.equal a a' ->
-              Ok (List.rev l, k, t)
-          | _ -> aux (h :: l) t)
-    in
-    aux [] ctx
-  in
+  let* ctx2, w1, ctx1 = Context.break_apart_at_unsolved a ctx in
   let* ctx1, w2 = infer_elaborated ctx1 p2 in
   let* ctx3 = unify ctx1 (Context.apply ctx1 w1) w2 in
   Ok (List.append ctx2 (Context.Element.Solved (a, p2) :: ctx3))
