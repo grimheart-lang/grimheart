@@ -97,7 +97,6 @@ and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
     (Context.t, Sulfur_errors.t) result =
   let open Type.Primitives in
   match (_A, _B) with
-  (* Subsumption Rules *)
   | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
     when Type.equal t_function t_function1 && Type.equal t_function t_function2
     ->
@@ -105,12 +104,18 @@ and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
       unify ctx (Context.apply ctx b1) (Context.apply ctx b2)
   | _, Forall (b, k, t) ->
       let b' = fresh_name () in
-      let t = Type.substitute b (Variable b') t in
-      scoped ctx (Quantified (b', k)) (fun ctx -> unify ctx _A t)
-  | Forall (a, Some k, t), _ ->
+      let k' = fresh_name () in
+      let k = match k with Some k -> k | None -> Unsolved k' in
+      let t = Type.substitute b (Unsolved b') t in
+      scoped_unsolved ctx k' t_type (fun ctx ->
+          scoped_unsolved ctx b' k (fun ctx -> unify ctx _A t))
+  | Forall (a, k, t), _ ->
       let a' = fresh_name () in
+      let k' = fresh_name () in
+      let k = match k with Some k -> k | None -> Unsolved k' in
       let t = Type.substitute a (Unsolved a') t in
-      scoped_unsolved ctx a' k (fun gamma -> unify gamma t _B)
+      scoped_unsolved ctx k' t_type (fun ctx ->
+          scoped_unsolved ctx a' k (fun ctx -> unify ctx t _B))
   (* A-U-APP *)
   | Apply (p1, p2), Apply (p3, p4) ->
       let* gamma = unify ctx p1 p3 in
