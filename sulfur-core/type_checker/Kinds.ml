@@ -76,7 +76,7 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
           let b1 = fresh_name () in
           let theta =
             let open Context.Element in
-            Solved (b, Unsolved b1)
+            Solved (b, p, Unsolved b1)
             :: Unsolved (a, k)
             :: Unsolved (b1, p1)
             :: theta
@@ -90,4 +90,4 @@ and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
   let* ctx2, w1, ctx1 = Context.break_apart_at_unsolved a ctx in
   let* ctx1, w2 = infer_elaborated ctx1 p2 in
   let* ctx3 = unify ctx1 (Context.apply ctx1 w1) w2 in
-  Ok (List.append ctx2 (Context.Element.Solved (a, p2) :: ctx3))
+  Ok (List.append ctx2 (Context.Element.Solved (a, w1, p2) :: ctx3))

@@ -6,7 +6,7 @@ module Element : sig
     | Variable of string * Type.t
     | Quantified of string * Type.t option
     | Unsolved of string * Type.t
-    | Solved of string * Type.t
+    | Solved of string * Type.t * Type.t
     | Marker of string
 
   val equal : t -> t -> bool
