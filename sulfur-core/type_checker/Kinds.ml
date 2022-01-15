@@ -15,6 +15,18 @@ let fresh_name : unit -> string =
     incr i;
     "k" ^ string_of_int !i
 
+let scoped (context : Context.t) (element : Context.Element.t)
+    (action : Context.t -> (Context.t, Sulfur_errors.t) result) :
+    (Context.t, Sulfur_errors.t) result =
+  let* context' = action (element :: context) in
+  Ok (Context.discard_up_to element context')
+
+let scoped_unsolved (context : Context.t) (unsolved : string) (kind : Type.t)
+    (action : Context.t -> ('a, Sulfur_errors.t) result) :
+    ('a, Sulfur_errors.t) result =
+  scoped context (Marker unsolved) (fun context ->
+      action (Unsolved (unsolved, kind) :: context))
+
 let rec instantiate (_gamma : Context.t) ((_T, _K) : Type.t * Type.t)
     (_K : Type.t) : (Context.t * Type.t, Sulfur_errors.t) result =
   failwith "instantiate: undefined"
@@ -31,8 +43,8 @@ and infer_apply (_gamma : Context.t) ((_T, _K) : Type.t * Type.t) (_K : Type.t)
     : (Context.t * Type.t, Sulfur_errors.t) result =
   failwith "infer_apply: undefined"
 
-and elaborate (ctx : Context.t) (_T : Type.t) :
-    (Type.t, Sulfur_errors.t) result =
+and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Sulfur_errors.t) result
+    =
   let open Type.Primitives in
   match _T with
   (* A-ELA-TCON *)
@@ -83,7 +95,22 @@ and elaborate (ctx : Context.t) (_T : Type.t) :
 
 and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
     (Context.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
   match (_A, _B) with
+  (* Subsumption Rules *)
+  | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
+    when Type.equal t_function t_function1 && Type.equal t_function t_function2
+    ->
+      let* ctx = unify ctx a2 a1 in
+      unify ctx (Context.apply ctx b1) (Context.apply ctx b2)
+  | _, Forall (b, k, t) ->
+      let b' = fresh_name () in
+      let t = Type.substitute b (Variable b') t in
+      scoped ctx (Quantified (b', k)) (fun ctx -> unify ctx _A t)
+  | Forall (a, Some k, t), _ ->
+      let a' = fresh_name () in
+      let t = Type.substitute a (Unsolved a') t in
+      scoped_unsolved ctx a' k (fun gamma -> unify gamma t _B)
   (* A-U-APP *)
   | Apply (p1, p2), Apply (p3, p4) ->
       let* gamma = unify ctx p1 p3 in
