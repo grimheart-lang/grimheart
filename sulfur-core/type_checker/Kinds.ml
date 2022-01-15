@@ -8,6 +8,12 @@
 open Sulfur_ast
 open Sulfur_errors.Let
 
+let fresh_name : unit -> string =
+  let i = ref (-1) in
+  fun () ->
+    incr i;
+    "k" ^ string_of_int !i
+
 let rec instantiate (_gamma : Context.t) ((_T, _K) : Type.t * Type.t)
     (_K : Type.t) : (Context.t * Type.t, Sulfur_errors.t) result =
   failwith "instantiate: undefined"
@@ -51,30 +57,31 @@ and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
 and promote (ctx : Context.t) (a : string) (_T : Type.t) :
     (Context.t * Type.t, Sulfur_errors.t) result =
   match _T with
-  | Unsolved b ->
-      let b_appears_first =
-        let discard_up_to_a (ctx : Context.t) : Context.t =
-          let rec aux = function
-            | [] -> []
-            | Context.Element.Unsolved (a', _) :: t when String.equal a a' -> t
-            | _ :: t -> aux t
+  (* A-PR-KUVARL / A-PR-KUVARR-TT *)
+  | Unsolved b -> (
+      (* Δ[β][α] ~ Δ,β,Δ'[α] ~ Δ,β,Δ',α,Δ'' *)
+      (* 1. Break apart the input context with beta into its left and right
+         components. *)
+      let* ctxR, p, _ = Context.break_apart_at_unsolved b ctx in
+      (* 2. If the right component can be broken apart with alpha, the
+         A-PR-KUVARL rule follows. Otherwise, A-PR-KUVARR-TT gets used
+         instead. *)
+      match Context.break_apart_at_unsolved a ctxR with
+      (* A-PR-KUVARL *)
+      | Ok _ -> Ok (ctx, _T)
+      (* A-PR-KUVARR-TT *)
+      | Error _ ->
+          let* ctx, p1 = promote ctx a (Context.apply ctx p) in
+          let* _, k, theta = Context.break_apart_at_unsolved a ctx in
+          let b1 = fresh_name () in
+          let theta =
+            let open Context.Element in
+            Solved (b, Unsolved b1)
+            :: Unsolved (a, k)
+            :: Unsolved (b1, p1)
+            :: theta
           in
-          aux ctx
-        in
-        let b_is_member (ctx : Context.t) : bool =
-          let rec aux = function
-            | [] -> false
-            | Context.Element.Unsolved (b', _) :: _ when String.equal b b' ->
-                true
-            | _ :: t -> aux t
-          in
-          aux ctx
-        in
-        b_is_member (discard_up_to_a ctx)
-      in
-      if b_appears_first
-      then Ok (ctx, _T)
-      else failwith "promote: todo: make sure to promote b's kind."
+          Ok (theta, Type.Unsolved b1))
   | _ -> Ok (ctx, _T)
 
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
