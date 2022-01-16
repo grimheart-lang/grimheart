@@ -14,7 +14,7 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
   match _T with
   | Constructor _ -> Ok ()
   | Variable v ->
-      if Context.mem context (Quantified (v, None))
+      if Context.mem context (Quantified v)
       then Ok ()
       else Error (IllFormedType _T)
   | Unsolved u -> (
@@ -25,9 +25,7 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
       match List.find context ~f:predicate with
       | Some _ -> Ok ()
       | None -> Error (IllFormedType _T))
-  | Forall (a, _K, _A) -> (
-      let* () = well_formed_type (Quantified (a, _K) :: context) _A in
-      match _K with Some _K -> well_formed_type context _K | None -> Ok ())
+  | Forall (a, _, _A) -> well_formed_type (Quantified a :: context) _A
   | Apply (_A, _B) | KindApply (_A, _B) | Annotate (_A, _B) ->
       let* _ = well_formed_type context _A
       and* _ = well_formed_type context _B in
@@ -136,8 +134,8 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       in
       let* theta = solve gamma a' _A in
       solve theta b' (Context.apply theta _B)
-  | Forall (b, _K, _B) ->
-      scoped gamma (Quantified (b, _K)) (fun gamma -> solve gamma b _B)
+  | Forall (b, _, _B) ->
+      scoped gamma (Quantified b) (fun gamma -> solve gamma b _B)
   | Apply (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
@@ -198,10 +196,10 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       scoped gamma
         (Variable (n', _A1))
         (fun gamma -> check gamma (Expr.substitute n (Variable n') e) _A2)
-  | _, Forall (a, _K, _A) ->
+  | _, Forall (a, _, _A) ->
       let a' = fresh_name () in
       let _A = Type.substitute a (Variable a') _A in
-      scoped gamma (Quantified (a', _K)) (fun gamma -> check gamma e _A)
+      scoped gamma (Quantified a') (fun gamma -> check gamma e _A)
   | _ ->
       let* theta, _A' = infer gamma e in
       unify theta (Context.apply theta _A') (Context.apply theta _A)

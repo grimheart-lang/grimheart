@@ -65,10 +65,7 @@ and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Sulfur_errors.t) result
   (* A-ELA-VAR *)
   | Variable a -> (
       let f : Context.Element.t -> _ = function
-        | Context.Element.Quantified (a', k) when String.equal a a' -> (
-            match k with
-            | Some k -> Some k
-            | None -> failwith "Variable has no kind.")
+        | Context.Element.KindedQuantified (a', k) when String.equal a a' -> Some k
         | _ -> None
       in
       match List.find_map ctx ~f with

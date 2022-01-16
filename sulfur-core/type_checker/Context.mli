@@ -4,9 +4,10 @@ open Sulfur_ast
 module Element : sig
   type t =
     | Variable of string * Type.t
-    | Quantified of string * Type.t option
+    | Quantified of string
     | Unsolved of string
     | Solved of string * Type.t
+    | KindedQuantified of string * Type.t
     | KindedUnsolved of string * Type.t
     | KindedSolved of string * Type.t * Type.t
     | Marker of string
