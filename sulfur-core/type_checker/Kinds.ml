@@ -48,16 +48,13 @@ and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Sulfur_errors.t) result
   let open Type.Primitives in
   match _T with
   (* A-ELA-TCON *)
-  | Constructor "Char"
-  | Constructor "String"
-  | Constructor "Int"
-  | Constructor "Float"
-  | Constructor "Type" ->
-      Ok t_type
-  | Constructor "Array" -> Ok (Type.Sugar.fn t_type t_type)
-  | Constructor "Function" ->
-      Ok (Type.Sugar.fn t_type (Type.Sugar.fn t_type t_type))
-  | Constructor _ -> failwith "infer_elaborated: lookup the environment"
+  | Constructor _ when is_primitive_type _T -> Ok t_type
+  | Constructor _ when is_primitive_type_type _T ->
+      Ok Type.Sugar.(fn t_type t_type)
+  | Constructor "Function" -> Ok Type.Sugar.(fn t_type (fn t_type t_type))
+  | Constructor _ ->
+      raise
+        (Failure "Elaborated kind synthesis failed for arbitrary constructors.")
   (* A-ELA-KUVAR *)
   | Unsolved a ->
       let* _, p, _ = Context.break_apart_at_kinded_unsolved a ctx in
@@ -65,7 +62,8 @@ and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Sulfur_errors.t) result
   (* A-ELA-VAR *)
   | Variable a -> (
       let f : Context.Element.t -> _ = function
-        | Context.Element.KindedQuantified (a', k) when String.equal a a' -> Some k
+        | Context.Element.KindedQuantified (a', k) when String.equal a a' ->
+            Some k
         | _ -> None
       in
       match List.find_map ctx ~f with
