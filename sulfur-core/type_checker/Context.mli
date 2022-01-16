@@ -30,8 +30,8 @@ val discard_up_to : Element.t -> t -> t
     element in the provided context. *)
 
 val break_apart_at : Element.t -> t -> (t * t, Sulfur_errors.t) result
-(** [break_apart_at_unsolved element context] breaks the context to its left
-    and right components relative to an element. *)
+(** [break_apart_at_unsolved element context] breaks the context to its left and
+    right components relative to an element. *)
 
 val break_apart_at_unsolved : string -> t -> (t * t, Sulfur_errors.t) result
 (** [break_apart_at_unsolved unsolved context] breaks the context to its left

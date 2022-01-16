@@ -27,21 +27,151 @@ let scoped_unsolved (context : Context.t) (unsolved : string) (kind : Type.t)
   scoped context (Marker unsolved) (fun context ->
       action (KindedUnsolved (unsolved, kind) :: context))
 
-let rec instantiate (_gamma : Context.t) ((_T, _K) : Type.t * Type.t)
-    (_K : Type.t) : (Context.t * Type.t, Sulfur_errors.t) result =
-  failwith "instantiate: undefined"
+let should_instantiate : Type.t -> bool = function
+  | Forall _ -> true
+  | _ -> false
 
-and check (_gamma : Context.t) (_T : Type.t) (_K : Type.t) :
-    (Context.t * Type.t, Sulfur_errors.t) result =
-  failwith "check: undefined"
-
-and infer (_gamma : Context.t) (_T : Type.t) :
-    (Context.t * Type.t, Sulfur_errors.t) result =
-  failwith "infer: undefined"
-
-and infer_apply (_gamma : Context.t) ((_T, _K) : Type.t * Type.t) (_K : Type.t)
+let rec instantiate (ctx : Context.t) ((_T, _K) : Type.t * Type.t) (_L : Type.t)
     : (Context.t * Type.t, Sulfur_errors.t) result =
-  failwith "infer_apply: undefined"
+  match _K with
+  (* A-INST_FORALL *)
+  | Forall (a, Some k, t) when should_instantiate _L ->
+      let k' = fresh_name () in
+      instantiate
+        (KindedUnsolved (k', k) :: ctx)
+        (KindApply (_T, Unsolved k'), Type.substitute a (Unsolved k') t)
+        _L
+  (* A-INST-REFL *)
+  | _ ->
+      let* ctx = unify ctx _K _L in
+      Ok (ctx, _T)
+
+and check (ctx : Context.t) (_T : Type.t) (_K : Type.t) :
+    (Context.t * Type.t, Sulfur_errors.t) result =
+  (* A-KC-SUB *)
+  let* ctx, _T', _K' = infer ctx _T in
+  instantiate ctx (_T', Context.apply ctx _K) (Context.apply ctx _K')
+
+and infer (ctx : Context.t) (_T : Type.t) :
+    (Context.t * Type.t * Type.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
+  match _T with
+  (* A-KTT-CON *)
+  | Constructor _ when is_primitive_type _T -> Ok (ctx, _T, t_type)
+  | Constructor _ when is_primitive_type_type _T ->
+      Ok (ctx, _T, Type.Sugar.fn t_type t_type)
+  | Constructor "Function" ->
+      Ok (ctx, _T, Type.Sugar.(fn t_type (fn t_type t_type)))
+  | Constructor _ ->
+      raise (Failure "Kind synthesis failed for arbitrary constructors.")
+  (* A-KTT-VAR *)
+  | Variable a -> (
+      let f : Context.Element.t -> _ = function
+        | Context.Element.KindedQuantified (a', k) when String.equal a a' ->
+            Some k
+        | _ -> None
+      in
+      match List.find_map ctx ~f with
+      | Some k -> Ok (ctx, _T, Context.apply ctx k)
+      | None -> Error (Sulfur_errors.UnknownVariable a))
+  (* A-KTT-KUVAR *)
+  | Unsolved u ->
+      let* _, k, _ = Context.break_apart_at_kinded_unsolved u ctx in
+      Ok (ctx, _T, k)
+  (* A-KTT-FORALL *)
+  | Forall (a, Some k, t) ->
+      let* ctx, k = check ctx k t_type in
+      let* ctx, t = check (KindedQuantified (a, k) :: ctx) t t_type in
+      let* ctx3, ctx2 = Context.break_apart_at (KindedQuantified (a, k)) ctx in
+      let unsolved =
+        let f : Context.Element.t -> bool = function
+          | Unsolved _ -> true
+          | KindedUnsolved _ -> true
+          | _ -> false
+        in
+        List.filter ctx3 ~f
+      in
+      Ok
+        ( List.append unsolved ctx2
+        , Type.Forall (a, Some k, Context.apply ctx3 t)
+        , t_type )
+  (* A-KTT-FORALLI *)
+  | Forall (a, None, t) ->
+      let u = fresh_name () in
+      let* ctx, t =
+        check
+          (KindedQuantified (a, Unsolved u) :: KindedUnsolved (u, t_type) :: ctx)
+          t t_type
+      in
+      let* ctx3, ctx2 =
+        Context.break_apart_at (KindedQuantified (a, Unsolved u)) ctx
+      in
+      let unsolved =
+        let f : Context.Element.t -> bool = function
+          | Unsolved _ -> true
+          | KindedUnsolved _ -> true
+          | _ -> false
+        in
+        List.filter ctx3 ~f
+      in
+      Ok
+        ( List.append unsolved ctx2
+        , Type.Forall (a, Some (Unsolved u), Context.apply ctx3 t)
+        , t_type )
+  (* A-KTT-APP *)
+  | Apply (t1, t2) ->
+      let* ctx, t1, k1 = infer ctx t1 in
+      infer_apply ctx (t1, k1) t2
+  (* A-KTT-KAPP *)
+  | KindApply (t1, t2) -> (
+      let* ctx, t1, k1 = infer ctx t1 in
+      let t1 = Context.apply ctx t1 in
+      match k1 with
+      | Forall (a, Some k, t) ->
+          let* ctx, t2 = check ctx t2 k in
+          Ok (ctx, Type.KindApply (t1, t2), Type.substitute a t2 t)
+      | _ -> failwith "infer: Forall has no kind")
+  (* A-KTT-ANNOTATE *)
+  | Annotate (t1, t2) ->
+      let* ctx, t2, _ = infer ctx t2 in
+      let* ctx, t1 = check ctx t1 t2 in
+      Ok (ctx, t1, Context.apply ctx t2)
+
+and infer_apply (ctx : Context.t) ((fn, fnKind) : Type.t * Type.t) (ar : Type.t)
+    : (Context.t * Type.t * Type.t, Sulfur_errors.t) result =
+  let open Type.Primitives in
+  match fnKind with
+  (* A-KAPP-FORALL *)
+  | Forall (a, Some w, t) ->
+      let u = fresh_name () in
+      infer_apply
+        (KindedUnsolved (u, w) :: ctx)
+        (KindApply (fn, Unsolved u), Type.substitute a (Unsolved u) t)
+        ar
+  (* A-KAPP-TT-KUVAR *)
+  | Unsolved u ->
+      let u1 = fresh_name () in
+      let u2 = fresh_name () in
+      let* ctx2, w, ctx1 = Context.break_apart_at_kinded_unsolved u ctx in
+      let ctx =
+        let ctx1_2 =
+          let open Context.Element in
+          [
+            KindedSolved (u, w, Type.Sugar.fn (Unsolved u1) (Unsolved u2))
+          ; KindedUnsolved (u2, t_type)
+          ; KindedUnsolved (u1, t_type)
+          ]
+        in
+        List.concat [ctx2; ctx1_2; ctx1]
+      in
+      let* ctx, ar = check ctx ar (Unsolved u1) in
+      Ok (ctx, Type.Apply (fn, ar), Type.Unsolved u2)
+  (* A-KAPP-TT-ARROW *)
+  | Apply (Apply (t_function', arKind), rtKind)
+    when Type.equal t_function t_function' ->
+      let* ctx, t = check ctx ar arKind in
+      Ok (ctx, Type.Apply (fn, t), Context.apply ctx rtKind)
+  | _ -> failwith "infer_apply: todo: add a better error"
 
 and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Sulfur_errors.t) result
     =

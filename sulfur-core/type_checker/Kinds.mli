@@ -13,13 +13,13 @@ val check :
 val infer :
      Context.t
   -> Sulfur_ast.Type.t
-  -> (Context.t * Sulfur_ast.Type.t, Sulfur_errors.t) result
+  -> (Context.t * Sulfur_ast.Type.t * Sulfur_ast.Type.t, Sulfur_errors.t) result
 
 val infer_apply :
      Context.t
   -> Sulfur_ast.Type.t * Sulfur_ast.Type.t
   -> Sulfur_ast.Type.t
-  -> (Context.t * Sulfur_ast.Type.t, Sulfur_errors.t) result
+  -> (Context.t * Sulfur_ast.Type.t * Sulfur_ast.Type.t, Sulfur_errors.t) result
 
 val elaborate :
   Context.t -> Sulfur_ast.Type.t -> (Sulfur_ast.Type.t, Sulfur_errors.t) result
