@@ -26,7 +26,8 @@ let rec apply (context : t) (t : Type.t) : Type.t =
   | Variable _ -> t
   | Unsolved u ->
       let find_solved = function
-        | Element.Solved (u', t) when String.equal u u' ->
+        | (Element.Solved (u', t) | Element.KindedSolved (u', _, t))
+          when String.equal u u' ->
             if Type.is_mono_type t
             then Some t
             else
