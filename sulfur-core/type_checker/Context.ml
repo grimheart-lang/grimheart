@@ -56,6 +56,17 @@ let discard_up_to (element : Element.t) (context : t) : t =
   in
   aux context
 
+let break_apart_at (element : Element.t) (context : t) :
+    (t * t, Sulfur_errors.t) result =
+  let rec aux (collected : t) : t -> (t * t, _) result = function
+    | [] -> Error FailedToBreakApart
+    | current :: rest ->
+        if Element.equal element current
+        then Ok (List.rev collected, rest)
+        else aux (current :: collected) rest
+  in
+  aux [] context
+
 let break_apart_at_unsolved (a : string) (context : t) :
     (t * t, Sulfur_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
