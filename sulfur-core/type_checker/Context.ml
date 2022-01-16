@@ -8,8 +8,10 @@ module Element = struct
   type t =
     | Variable of string * Type.t
     | Quantified of string * Type.t option
-    | Unsolved of string * Type.t
-    | Solved of string * Type.t * Type.t
+    | Unsolved of string
+    | Solved of string * Type.t
+    | KindedUnsolved of string * Type.t
+    | KindedSolved of string * Type.t * Type.t
     | Marker of string
   [@@deriving eq]
 end
@@ -23,7 +25,7 @@ let rec apply (context : t) (t : Type.t) : Type.t =
   | Variable _ -> t
   | Unsolved u ->
       let find_solved = function
-        | Element.Solved (u', _, t) when String.equal u u' ->
+        | Element.Solved (u', t) when String.equal u u' ->
             if Type.is_mono_type t
             then Some t
             else
@@ -54,10 +56,19 @@ let discard_up_to (element : Element.t) (context : t) : t =
   aux context
 
 let break_apart_at_unsolved (a : string) (context : t) :
+    (t * t, Sulfur_errors.t) result =
+  let rec aux (collected : t) : t -> (t * t, _) result = function
+    | [] -> Error FailedToBreakApart
+    | Unsolved a' :: rest when String.equal a a' -> Ok (List.rev collected, rest)
+    | current :: rest -> aux (current :: collected) rest
+  in
+  aux [] context
+
+let break_apart_at_kinded_unsolved (a : string) (context : t) :
     (t * Type.t * t, Sulfur_errors.t) result =
   let rec aux (collected : t) : t -> (t * Type.t * t, _) result = function
     | [] -> Error FailedToBreakApart
-    | Unsolved (a', k) :: rest when String.equal a a' ->
+    | KindedUnsolved (a', k) :: rest when String.equal a a' ->
         Ok (List.rev collected, k, rest)
     | current :: rest -> aux (current :: collected) rest
   in

@@ -25,7 +25,7 @@ let scoped_unsolved (context : Context.t) (unsolved : string) (kind : Type.t)
     (action : Context.t -> ('a, Sulfur_errors.t) result) :
     ('a, Sulfur_errors.t) result =
   scoped context (Marker unsolved) (fun context ->
-      action (Unsolved (unsolved, kind) :: context))
+      action (KindedUnsolved (unsolved, kind) :: context))
 
 let rec instantiate (_gamma : Context.t) ((_T, _K) : Type.t * Type.t)
     (_K : Type.t) : (Context.t * Type.t, Sulfur_errors.t) result =
@@ -60,7 +60,7 @@ and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Sulfur_errors.t) result
   | Constructor _ -> failwith "infer_elaborated: lookup the environment"
   (* A-ELA-KUVAR *)
   | Unsolved a ->
-      let* _, p, _ = Context.break_apart_at_unsolved a ctx in
+      let* _, p, _ = Context.break_apart_at_kinded_unsolved a ctx in
       Ok (Context.apply ctx p)
   (* A-ELA-VAR *)
   | Variable a -> (
@@ -141,23 +141,23 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
       (* Δ[β][α] ~ Δ,β,Δ'[α] ~ Δ,β,Δ',α,Δ'' *)
       (* 1. Break apart the input context with beta into its left and right
          components. *)
-      let* ctxR, p, _ = Context.break_apart_at_unsolved b ctx in
+      let* ctxR, p, _ = Context.break_apart_at_kinded_unsolved b ctx in
       (* 2. If the right component can be broken apart with alpha, the
          A-PR-KUVARL rule follows. Otherwise, A-PR-KUVARR-TT gets used
          instead. *)
-      match Context.break_apart_at_unsolved a ctxR with
+      match Context.break_apart_at_kinded_unsolved a ctxR with
       (* A-PR-KUVARL *)
       | Ok _ -> Ok (ctx, _T)
       (* A-PR-KUVARR-TT *)
       | Error _ ->
           let* ctx, p1 = promote ctx a (Context.apply ctx p) in
-          let* _, k, theta = Context.break_apart_at_unsolved a ctx in
+          let* _, k, theta = Context.break_apart_at_kinded_unsolved a ctx in
           let b1 = fresh_name () in
           let theta =
             let open Context.Element in
-            Solved (b, p, Unsolved b1)
-            :: Unsolved (a, k)
-            :: Unsolved (b1, p1)
+            KindedSolved (b, p, Unsolved b1)
+            :: KindedUnsolved (a, k)
+            :: KindedUnsolved (b1, p1)
             :: theta
           in
           Ok (theta, Type.Unsolved b1))
@@ -166,7 +166,7 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
     (Context.t, Sulfur_errors.t) result =
   let* ctx, p2 = promote ctx a p1 in
-  let* ctx2, w1, ctx1 = Context.break_apart_at_unsolved a ctx in
+  let* ctx2, w1, ctx1 = Context.break_apart_at_kinded_unsolved a ctx in
   let* w2 = elaborate ctx1 p2 in
   let* ctx3 = unify ctx1 (Context.apply ctx1 w1) w2 in
-  Ok (List.append ctx2 (Context.Element.Solved (a, w1, p2) :: ctx3))
+  Ok (List.append ctx2 (Context.Element.KindedSolved (a, w1, p2) :: ctx3))

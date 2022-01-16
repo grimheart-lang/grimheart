@@ -55,7 +55,7 @@ let () =
     ; ( "infer-literal-array-empty"
       , [
           infer_type_check_test_case "infer empty array literal" `Quick
-            (Forall ("a", Some t_type, Apply (t_array, Variable "a")))
+            (Forall ("a", None, Apply (t_array, Variable "a")))
             (Expr.Literal (Literal.Array []))
         ] )
     ]

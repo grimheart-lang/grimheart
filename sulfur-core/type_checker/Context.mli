@@ -5,8 +5,10 @@ module Element : sig
   type t =
     | Variable of string * Type.t
     | Quantified of string * Type.t option
-    | Unsolved of string * Type.t
-    | Solved of string * Type.t * Type.t
+    | Unsolved of string
+    | Solved of string * Type.t
+    | KindedUnsolved of string * Type.t
+    | KindedSolved of string * Type.t * Type.t
     | Marker of string
 
   val equal : t -> t -> bool
@@ -26,8 +28,12 @@ val discard_up_to : Element.t -> t -> t
 (** [discard_up_to element context] discards all elements up to the provided
     element in the provided context. *)
 
-val break_apart_at_unsolved :
-  string -> t -> (t * Type.t * t, Sulfur_errors.t) result
+val break_apart_at_unsolved : string -> t -> (t * t, Sulfur_errors.t) result
 (** [break_apart_at_unsolved unsolved context] breaks the context to its left
-    and right components relative to an unsolved variable, and also returns its
-    kind. *)
+    and right components relative to an unsolved variable. *)
+
+val break_apart_at_kinded_unsolved :
+  string -> t -> (t * Sulfur_ast.Type.t * t, Sulfur_errors.t) result
+(** [break_apart_at_kinded_unsolved unsolved context] breaks the context to its
+    left and right components relative to an unsolved variable, and also returns
+    its kind. *)
