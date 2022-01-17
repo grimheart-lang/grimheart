@@ -19,7 +19,12 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
       else Error (IllFormedType _T)
   | Unsolved u -> (
       let predicate : Context.Element.t -> bool = function
-        | (Unsolved u' | Solved (u', _)) when String.equal u u' -> true
+        | Unsolved u'
+        | KindedUnsolved (u', _)
+        | Solved (u', _)
+        | KindedSolved (u', _, _)
+          when String.equal u u' ->
+            true
         | _ -> false
       in
       match List.find context ~f:predicate with
