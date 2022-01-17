@@ -228,20 +228,24 @@ and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
     ->
       let* ctx = unify ctx a2 a1 in
       unify ctx (Context.apply ctx b1) (Context.apply ctx b2)
-  | _, Forall (b, k, t) ->
+  | _, Forall (b, k, t) -> (
       let b' = fresh_name () in
-      let k' = fresh_name () in
-      let k = match k with Some k -> k | None -> Unsolved k' in
       let t = Type.substitute b (Unsolved b') t in
-      scoped_unsolved ctx k' t_type (fun ctx ->
-          scoped_unsolved ctx b' k (fun ctx -> unify ctx t1 t))
-  | Forall (a, k, t), _ ->
+      match k with
+      | Some k -> scoped_unsolved ctx b' k (fun ctx -> unify ctx t1 t)
+      | None ->
+          let k' = fresh_name () in
+          scoped_unsolved ctx k' t_type (fun ctx ->
+              scoped_unsolved ctx b' (Unsolved k') (fun ctx -> unify ctx t1 t)))
+  | Forall (a, k, t), _ -> (
       let a' = fresh_name () in
-      let k' = fresh_name () in
-      let k = match k with Some k -> k | None -> Unsolved k' in
       let t = Type.substitute a (Unsolved a') t in
-      scoped_unsolved ctx k' t_type (fun ctx ->
-          scoped_unsolved ctx a' k (fun ctx -> unify ctx t t2))
+      match k with
+      | Some k -> scoped_unsolved ctx a' k (fun ctx -> unify ctx t t2)
+      | None ->
+          let k' = fresh_name () in
+          scoped_unsolved ctx k' t_type (fun ctx ->
+              scoped_unsolved ctx a' (Unsolved k') (fun ctx -> unify ctx t t2)))
   (* A-U-APP *)
   | Apply (p1, p2), Apply (p3, p4) ->
       let* gamma = unify ctx p1 p3 in
