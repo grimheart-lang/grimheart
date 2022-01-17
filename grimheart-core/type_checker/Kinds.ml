@@ -110,7 +110,14 @@ and infer (ctx : Context.t) (t : Type.t) :
       | Forall (a, Some k, t) ->
           let* ctx, t2 = check ctx t2 k in
           Ok (ctx, Type.KindApply (t1, t2), Type.substitute a t2 t)
-      | _ -> failwith "infer: Forall has no kind")
+      | _ ->
+          let message =
+            Printf.sprintf
+              "infer: kind application is invalid for %s. It must be a forall \
+               with a kind annotation."
+              (Type.show t1)
+          in
+          Error (InternalKindCheckerError message))
   (* A-KTT-ANNOTATE *)
   | Annotate (t1, t2) ->
       let* ctx, t2, _ = infer ctx t2 in
@@ -151,7 +158,7 @@ and infer_apply (ctx : Context.t) ((fn, fnKind) : Type.t * Type.t) (ar : Type.t)
     when Type.equal t_function t_function' ->
       let* ctx, t = check ctx ar arKind in
       Ok (ctx, Type.Apply (fn, t), Context.apply ctx rtKind)
-  | _ -> failwith "infer_apply: todo: add a better error"
+  | _ -> Error (CouldNotApplyKind (fn, fnKind, ar))
 
 and elaborate (ctx : Context.t) (_T : Type.t) :
     (Type.t, Grimheart_core_errors.t) result =
@@ -186,13 +193,27 @@ and elaborate (ctx : Context.t) (_T : Type.t) :
       | Apply (Apply (t_function', _), w2)
         when Type.equal t_function t_function' ->
           Ok w2
-      | _ -> failwith "todo: add a better error.")
+      | _ ->
+          let message =
+            Printf.sprintf
+              "elaborate: expecting %s to elaborate to a function, got %s \
+               instead."
+              (Type.show p1) (Type.show w1_w2)
+          in
+          Error (InternalKindCheckerError message))
   (* A-ELA-KAPP *)
   | KindApply (p1, p2) -> (
       let* w1 = elaborate ctx p1 in
       match w1 with
       | Forall (a, _, t) -> Ok (Type.substitute a t (Context.apply ctx p2))
-      | _ -> failwith "todo: add a better error.")
+      | _ ->
+          let message =
+            Printf.sprintf
+              "elaborate: expecting %s to elaborate to a forall, got %s \
+               instead."
+              (Type.show p1) (Type.show w1)
+          in
+          Error (InternalKindCheckerError message))
   (* A-ELA-FORALL *)
   | Forall _ -> Ok t_type
   (* A-ELA-ANNOTATE *)
@@ -236,7 +257,7 @@ and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
   (* A-U-KVARR-TT *)
   | p1, Unsolved a -> unify_unsolved ctx a p1
   (* FALLTHROUGH *)
-  | _ -> failwith "unify: FALLTHROUGH: todo: raise a more appropriate error"
+  | _A, _B -> Error (CouldNotUnifyKinds (_A, _B))
 
 and promote (ctx : Context.t) (a : string) (t : Type.t) :
     (Context.t * Type.t, Grimheart_core_errors.t) result =
