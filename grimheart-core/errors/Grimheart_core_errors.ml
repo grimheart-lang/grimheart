@@ -1,5 +1,5 @@
 open Core_kernel
-open Sulfur_ast
+open Grimheart_ast
 
 type t =
   | FailedUnification of Type.t * Type.t
@@ -7,6 +7,9 @@ type t =
   | FailedInfererence of unit Expr.t * Type.t
   | FailedInstantiation of string * Type.t
   | FailedKindChecking of Type.t * Type.t
+  | CouldNotUnifyKinds of Type.t * Type.t
+  | CouldNotApplyKind of Type.t * Type.t * Type.t
+  | InternalKindCheckerError of string
   | IllFormedType of Type.t
   | UnknownVariable of string
   | FailedToBreakApart

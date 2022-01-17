@@ -1,15 +1,18 @@
 (** Type-checking context. *)
 open Core_kernel
 
-open Sulfur_ast
-open Errors
+open Grimheart_ast
+open Grimheart_core_errors
 
 module Element = struct
   type t =
     | Variable of string * Type.t
-    | Quantified of string * Type.t option
+    | Quantified of string
     | Unsolved of string
     | Solved of string * Type.t
+    | KindedQuantified of string * Type.t
+    | KindedUnsolved of string * Type.t
+    | KindedSolved of string * Type.t * Type.t
     | Marker of string
   [@@deriving eq]
 end
@@ -23,7 +26,8 @@ let rec apply (context : t) (t : Type.t) : Type.t =
   | Variable _ -> t
   | Unsolved u ->
       let find_solved = function
-        | Element.Solved (u', t) when String.equal u u' ->
+        | (Element.Solved (u', t) | Element.KindedSolved (u', _, t))
+          when String.equal u u' ->
             if Type.is_mono_type t
             then Some t
             else
@@ -54,8 +58,8 @@ let discard_up_to (element : Element.t) (context : t) : t =
   aux context
 
 let break_apart_at (element : Element.t) (context : t) :
-    (t * t, Errors.t) result =
-  let rec aux collected = function
+    (t * t, Grimheart_core_errors.t) result =
+  let rec aux (collected : t) : t -> (t * t, _) result = function
     | [] -> Error FailedToBreakApart
     | current :: rest ->
         if Element.equal element current
@@ -63,3 +67,29 @@ let break_apart_at (element : Element.t) (context : t) :
         else aux (current :: collected) rest
   in
   aux [] context
+
+let break_apart_at_unsolved (a : string) (context : t) :
+    (t * t, Grimheart_core_errors.t) result =
+  let rec aux (collected : t) : t -> (t * t, _) result = function
+    | [] -> Error FailedToBreakApart
+    | Unsolved a' :: rest when String.equal a a' -> Ok (List.rev collected, rest)
+    | current :: rest -> aux (current :: collected) rest
+  in
+  aux [] context
+
+let break_apart_at_kinded_unsolved (a : string) (context : t) :
+    (t * Type.t * t, Grimheart_core_errors.t) result =
+  let rec aux (collected : t) : t -> (t * Type.t * t, _) result = function
+    | [] -> Error FailedToBreakApart
+    | KindedUnsolved (a', k) :: rest when String.equal a a' ->
+        Ok (List.rev collected, k, rest)
+    | current :: rest -> aux (current :: collected) rest
+  in
+  aux [] context
+
+let unsolved : t -> t =
+  let f : Element.t -> bool = function
+    | Unsolved _ | KindedUnsolved _ -> true
+    | _ -> false
+  in
+  List.filter ~f

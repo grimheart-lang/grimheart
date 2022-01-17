@@ -5,8 +5,8 @@ synopsis: "Core modules for the syntax"
 maintainer: ["Justin Garcia"]
 authors: ["Justin Garcia"]
 license: "BSD-3-Clause"
-homepage: "https://github.com/sjpgarcia/sulfur"
-bug-reports: "https://github.com/sjpgarcia/sulfur/issues"
+homepage: "https://github.com/grimheart-lang/grimheart"
+bug-reports: "https://github.com/grimheart-lang/grimheart/issues"
 depends: [
   "dune" {>= "2.9"}
   "core_kernel" {>= "v0.14.2"}

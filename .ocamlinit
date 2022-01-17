@@ -1,4 +1,4 @@
 #use_output "dune top"
 
-module S_Ast = Sulfur_ast
-module S_Core = Sulfur_core
+module G_Ast = Grimheart_ast
+module G_Core = Grimheart_core

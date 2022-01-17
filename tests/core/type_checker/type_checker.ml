@@ -1,15 +1,17 @@
-open Sulfur_ast
-open Sulfur_core
+open Grimheart_ast
+open Grimheart_core_type_checker
 
 module Test_utils = struct
   let testable_type_error =
     let open Alcotest in
-    result (testable Type.pp Type.equal) (testable Errors.pp Errors.equal)
+    result
+      (testable Type.pp Type.equal)
+      (testable Grimheart_core_errors.pp Grimheart_core_errors.equal)
 
   let infer_type_check_test_case annotation speed expected value =
     let check () =
       Alcotest.check testable_type_error annotation (Ok expected)
-        (Infer.infer_type value)
+        (Types.infer_type value)
     in
     Alcotest.test_case annotation speed check
 end
@@ -39,8 +41,7 @@ let () =
                 (Printf.sprintf "infer array %s literal"
                    (String.lowercase_ascii t))
                 `Quick
-                (* todo: this annotation gets erased in the future *)
-                (Apply (t_array, Annotate (Type.Constructor t, t_type)))
+                (Apply (t_array, Type.Constructor t))
                 (Expr.Literal (Literal.Array [Expr.Literal l; Expr.Literal l]))
           | _ -> failwith "not a constructor"
         in
@@ -54,9 +55,7 @@ let () =
     ; ( "infer-literal-array-empty"
       , [
           infer_type_check_test_case "infer empty array literal" `Quick
-            (* todo: this annotation gets erased in the future. make sure to
-               shift it inside the forall annotation instead. *)
-            (Forall ("a", None, Apply (t_array, Annotate (Variable "a", t_type))))
+            (Forall ("a", None, Apply (t_array, Variable "a")))
             (Expr.Literal (Literal.Array []))
         ] )
     ]
