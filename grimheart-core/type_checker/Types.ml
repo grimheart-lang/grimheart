@@ -43,6 +43,14 @@ let scoped_unsolved (context : Context.t) (unsolved : string)
   scoped context (Marker unsolved) (fun context ->
       action (Unsolved unsolved :: context))
 
+let insert_in_between ((gammaL, gammaR) : Context.t * Context.t)
+    ((a, a', b') : string * string * string) (ctor : Type.t -> Type.t -> Type.t)
+    : Context.t =
+  let gammaM : Context.t =
+    [Solved (a, ctor (Unsolved a') (Unsolved b')); Unsolved a'; Unsolved b']
+  in
+  List.concat [gammaL; gammaM; gammaR]
+
 let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
     (Context.t, Grimheart_errors.t) result =
   let open Type.Primitives in
@@ -123,14 +131,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       let a' = fresh_name () in
       let b' = fresh_name () in
       let gamma =
-        let gammaM : Context.t =
-          [
-            Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
-          ; Unsolved a'
-          ; Unsolved b'
-          ]
-        in
-        List.concat [gammaL; gammaM; gammaR]
+        insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.fn
       in
       let* theta = solve gamma a' _A in
       solve theta b' (Context.apply theta _B)
@@ -140,14 +141,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       let a' = fresh_name () in
       let b' = fresh_name () in
       let gamma =
-        let gammaM : Context.t =
-          [
-            Solved (a, Type.Sugar.ap (Type.Unsolved a') (Type.Unsolved b'))
-          ; Unsolved a'
-          ; Unsolved b'
-          ]
-        in
-        List.concat [gammaL; gammaM; gammaR]
+        insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.ap
       in
       let* theta = solve gamma a' _A in
       solve theta b' (Context.apply theta _B)
@@ -159,14 +153,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       let a' = fresh_name () in
       let b' = fresh_name () in
       let gamma =
-        let gammaM : Context.t =
-          [
-            Solved (a, Type.Annotate (Type.Unsolved a', Type.Unsolved b'))
-          ; Unsolved a'
-          ; Unsolved b'
-          ]
-        in
-        List.concat [gammaL; gammaM; gammaR]
+        insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.an
       in
       let* theta = solve gamma a' _A in
       solve theta b' (Context.apply theta _B)
@@ -286,14 +273,9 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
       let a' = fresh_name () in
       let b' = fresh_name () in
       let* gammaL, gammaR = Context.break_apart_at_unsolved a' gamma in
-      let gammaM : Context.t =
-        [
-          Solved (a, Type.Sugar.fn (Type.Unsolved a') (Type.Unsolved b'))
-        ; Unsolved a'
-        ; Unsolved b'
-        ]
+      let gamma =
+        insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.fn
       in
-      let gamma = List.concat [gammaL; gammaM; gammaR] in
       let* delta = check gamma e (Unsolved a') in
       Ok (delta, Type.Unsolved b')
   | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'

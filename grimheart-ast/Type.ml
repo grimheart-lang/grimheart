@@ -60,4 +60,6 @@ module Sugar = struct
   let fn a b = Apply (Apply (t_function, a), b)
 
   let ap a b = Apply (a, b)
+
+  let an a b = Annotate (a, b)
 end
