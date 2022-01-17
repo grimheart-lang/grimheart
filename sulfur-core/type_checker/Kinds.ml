@@ -31,37 +31,37 @@ let should_instantiate : Type.t -> bool = function
   | Forall _ -> true
   | _ -> false
 
-let rec instantiate (ctx : Context.t) ((_T, _K) : Type.t * Type.t) (_L : Type.t)
+let rec instantiate (ctx : Context.t) ((t1, k1) : Type.t * Type.t) (k2 : Type.t)
     : (Context.t * Type.t, Sulfur_errors.t) result =
-  match _K with
+  match k1 with
   (* A-INST_FORALL *)
-  | Forall (a, Some k, t) when should_instantiate _L ->
-      let k' = fresh_name () in
+  | Forall (a, Some k, t) when should_instantiate k2 ->
+      let u = fresh_name () in
       instantiate
-        (KindedUnsolved (k', k) :: ctx)
-        (KindApply (_T, Unsolved k'), Type.substitute a (Unsolved k') t)
-        _L
+        (KindedUnsolved (u, k) :: ctx)
+        (KindApply (t1, Unsolved u), Type.substitute a (Unsolved u) t)
+        k2
   (* A-INST-REFL *)
   | _ ->
-      let* ctx = unify ctx _K _L in
-      Ok (ctx, _T)
+      let* ctx = unify ctx k1 k2 in
+      Ok (ctx, t1)
 
-and check (ctx : Context.t) (_T : Type.t) (_K : Type.t) :
+and check (ctx : Context.t) (t : Type.t) (w : Type.t) :
     (Context.t * Type.t, Sulfur_errors.t) result =
   (* A-KC-SUB *)
-  let* ctx, _T', _K' = infer ctx _T in
-  instantiate ctx (_T', Context.apply ctx _K) (Context.apply ctx _K')
+  let* ctx, t, k = infer ctx t in
+  instantiate ctx (t, Context.apply ctx w) (Context.apply ctx k)
 
-and infer (ctx : Context.t) (_T : Type.t) :
+and infer (ctx : Context.t) (t : Type.t) :
     (Context.t * Type.t * Type.t, Sulfur_errors.t) result =
   let open Type.Primitives in
-  match _T with
+  match t with
   (* A-KTT-CON *)
-  | Constructor _ when is_primitive_type _T -> Ok (ctx, _T, t_type)
-  | Constructor _ when is_primitive_type_type _T ->
-      Ok (ctx, _T, Type.Sugar.fn t_type t_type)
+  | Constructor _ when is_primitive_type t -> Ok (ctx, t, t_type)
+  | Constructor _ when is_primitive_type_type t ->
+      Ok (ctx, t, Type.Sugar.fn t_type t_type)
   | Constructor "Function" ->
-      Ok (ctx, _T, Type.Sugar.(fn t_type (fn t_type t_type)))
+      Ok (ctx, t, Type.Sugar.(fn t_type (fn t_type t_type)))
   | Constructor _ ->
       raise (Failure "Kind synthesis failed for arbitrary constructors.")
   (* A-KTT-VAR *)
@@ -72,12 +72,12 @@ and infer (ctx : Context.t) (_T : Type.t) :
         | _ -> None
       in
       match List.find_map ctx ~f with
-      | Some k -> Ok (ctx, _T, Context.apply ctx k)
+      | Some k -> Ok (ctx, t, Context.apply ctx k)
       | None -> Error (Sulfur_errors.UnknownVariable a))
   (* A-KTT-KUVAR *)
   | Unsolved u ->
       let* _, k, _ = Context.break_apart_at_kinded_unsolved u ctx in
-      Ok (ctx, _T, k)
+      Ok (ctx, t, k)
   (* A-KTT-FORALL *)
   | Forall (a, Some k, t) ->
       let* ctx, k = check ctx k t_type in
@@ -121,12 +121,11 @@ and infer (ctx : Context.t) (_T : Type.t) :
   (* A-KTT-APP *)
   | Apply (t1, t2) ->
       let* ctx, t1, k1 = infer ctx t1 in
-      infer_apply ctx (t1, k1) t2
+      infer_apply ctx (t1, Context.apply ctx k1) t2
   (* A-KTT-KAPP *)
   | KindApply (t1, t2) -> (
       let* ctx, t1, k1 = infer ctx t1 in
-      let t1 = Context.apply ctx t1 in
-      match k1 with
+      match Context.apply ctx k1 with
       | Forall (a, Some k, t) ->
           let* ctx, t2 = check ctx t2 k in
           Ok (ctx, Type.KindApply (t1, t2), Type.substitute a t2 t)
@@ -142,22 +141,22 @@ and infer_apply (ctx : Context.t) ((fn, fnKind) : Type.t * Type.t) (ar : Type.t)
   let open Type.Primitives in
   match fnKind with
   (* A-KAPP-FORALL *)
-  | Forall (a, Some w, t) ->
+  | Forall (a, Some k, t) ->
       let u = fresh_name () in
       infer_apply
-        (KindedUnsolved (u, w) :: ctx)
+        (KindedUnsolved (u, k) :: ctx)
         (KindApply (fn, Unsolved u), Type.substitute a (Unsolved u) t)
         ar
   (* A-KAPP-TT-KUVAR *)
   | Unsolved u ->
       let u1 = fresh_name () in
       let u2 = fresh_name () in
-      let* ctx2, w, ctx1 = Context.break_apart_at_kinded_unsolved u ctx in
+      let* ctx2, k, ctx1 = Context.break_apart_at_kinded_unsolved u ctx in
       let ctx =
         let ctx1_2 =
           let open Context.Element in
           [
-            KindedSolved (u, w, Type.Sugar.fn (Unsolved u1) (Unsolved u2))
+            KindedSolved (u, k, Type.Sugar.fn (Unsolved u1) (Unsolved u2))
           ; KindedUnsolved (u2, t_type)
           ; KindedUnsolved (u1, t_type)
           ]
@@ -218,10 +217,10 @@ and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Sulfur_errors.t) result
   (* A-ELA-ANNOTATE *)
   | Annotate (_, _K) -> Ok _K
 
-and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
+and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
     (Context.t, Sulfur_errors.t) result =
   let open Type.Primitives in
-  match (_A, _B) with
+  match (t1, t2) with
   | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
     when Type.equal t_function t_function1 && Type.equal t_function t_function2
     ->
@@ -233,14 +232,14 @@ and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
       let k = match k with Some k -> k | None -> Unsolved k' in
       let t = Type.substitute b (Unsolved b') t in
       scoped_unsolved ctx k' t_type (fun ctx ->
-          scoped_unsolved ctx b' k (fun ctx -> unify ctx _A t))
+          scoped_unsolved ctx b' k (fun ctx -> unify ctx t1 t))
   | Forall (a, k, t), _ ->
       let a' = fresh_name () in
       let k' = fresh_name () in
       let k = match k with Some k -> k | None -> Unsolved k' in
       let t = Type.substitute a (Unsolved a') t in
       scoped_unsolved ctx k' t_type (fun ctx ->
-          scoped_unsolved ctx a' k (fun ctx -> unify ctx t _B))
+          scoped_unsolved ctx a' k (fun ctx -> unify ctx t t2))
   (* A-U-APP *)
   | Apply (p1, p2), Apply (p3, p4) ->
       let* gamma = unify ctx p1 p3 in
@@ -258,9 +257,9 @@ and unify (ctx : Context.t) (_A : Type.t) (_B : Type.t) :
   (* FALLTHROUGH *)
   | _ -> failwith "unify: FALLTHROUGH: todo: raise a more appropriate error"
 
-and promote (ctx : Context.t) (a : string) (_T : Type.t) :
+and promote (ctx : Context.t) (a : string) (t : Type.t) :
     (Context.t * Type.t, Sulfur_errors.t) result =
-  match _T with
+  match t with
   (* A-PR-KUVARL / A-PR-KUVARR-TT *)
   | Unsolved b -> (
       (* Δ[β][α] ~ Δ,β,Δ'[α] ~ Δ,β,Δ',α,Δ'' *)
@@ -272,7 +271,7 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
          instead. *)
       match Context.break_apart_at_kinded_unsolved a ctxR with
       (* A-PR-KUVARL *)
-      | Ok _ -> Ok (ctx, _T)
+      | Ok _ -> Ok (ctx, t)
       (* A-PR-KUVARR-TT *)
       | Error _ ->
           let* ctx, p1 = promote ctx a (Context.apply ctx p) in
@@ -286,7 +285,7 @@ and promote (ctx : Context.t) (a : string) (_T : Type.t) :
             :: theta
           in
           Ok (theta, Type.Unsolved b1))
-  | _ -> Ok (ctx, _T)
+  | _ -> Ok (ctx, t)
 
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
     (Context.t, Sulfur_errors.t) result =
