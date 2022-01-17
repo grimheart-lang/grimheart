@@ -30,7 +30,10 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
       match List.find context ~f:predicate with
       | Some _ -> Ok ()
       | None -> Error (IllFormedType _T))
-  | Forall (a, _, _A) -> well_formed_type (Quantified a :: context) _A
+  | Forall (a, k, _A) -> (
+      match k with
+      | Some k -> well_formed_type (KindedQuantified (a, k) :: context) _A
+      | None -> well_formed_type (Quantified a :: context) _A)
   | Apply (_A, _B) | KindApply (_A, _B) | Annotate (_A, _B) ->
       let* _ = well_formed_type context _A
       and* _ = well_formed_type context _B in
