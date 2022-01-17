@@ -153,8 +153,8 @@ and infer_apply (ctx : Context.t) ((fn, fnKind) : Type.t * Type.t) (ar : Type.t)
       Ok (ctx, Type.Apply (fn, t), Context.apply ctx rtKind)
   | _ -> failwith "infer_apply: todo: add a better error"
 
-and elaborate (ctx : Context.t) (_T : Type.t) : (Type.t, Grimheart_errors.t) result
-    =
+and elaborate (ctx : Context.t) (_T : Type.t) :
+    (Type.t, Grimheart_errors.t) result =
   let open Type.Primitives in
   match _T with
   (* A-ELA-TCON *)
