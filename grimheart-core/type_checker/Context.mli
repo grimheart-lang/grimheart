@@ -42,3 +42,6 @@ val break_apart_at_kinded_unsolved :
 (** [break_apart_at_kinded_unsolved unsolved context] breaks the context to its
     left and right components relative to an unsolved variable, and also returns
     its kind. *)
+
+val unsolved : t -> t
+(** [unsolved context] collects all unsolved elements in some context. *)

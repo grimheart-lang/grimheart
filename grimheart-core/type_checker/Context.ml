@@ -86,3 +86,10 @@ let break_apart_at_kinded_unsolved (a : string) (context : t) :
     | current :: rest -> aux (current :: collected) rest
   in
   aux [] context
+
+let unsolved : t -> t =
+  let f : Element.t -> bool = function
+    | Unsolved _ | KindedUnsolved _ -> true
+    | _ -> false
+  in
+  List.filter ~f

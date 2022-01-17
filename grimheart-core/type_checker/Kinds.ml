@@ -83,16 +83,8 @@ and infer (ctx : Context.t) (t : Type.t) :
       let* ctx, k = check ctx k t_type in
       let* ctx, t = check (KindedQuantified (a, k) :: ctx) t t_type in
       let* ctx3, ctx2 = Context.break_apart_at (KindedQuantified (a, k)) ctx in
-      let unsolved =
-        let f : Context.Element.t -> bool = function
-          | Unsolved _ -> true
-          | KindedUnsolved _ -> true
-          | _ -> false
-        in
-        List.filter ctx3 ~f
-      in
       Ok
-        ( List.append unsolved ctx2
+        ( List.append (Context.unsolved ctx3) ctx2
         , Type.Forall (a, Some k, Context.apply ctx3 t)
         , t_type )
   (* A-KTT-FORALLI *)
@@ -106,16 +98,8 @@ and infer (ctx : Context.t) (t : Type.t) :
       let* ctx3, ctx2 =
         Context.break_apart_at (KindedQuantified (a, Unsolved u)) ctx
       in
-      let unsolved =
-        let f : Context.Element.t -> bool = function
-          | Unsolved _ -> true
-          | KindedUnsolved _ -> true
-          | _ -> false
-        in
-        List.filter ctx3 ~f
-      in
       Ok
-        ( List.append unsolved ctx2
+        ( List.append (Context.unsolved ctx3) ctx2
         , Type.Forall (a, Some (Unsolved u), Context.apply ctx3 t)
         , t_type )
   (* A-KTT-APP *)
