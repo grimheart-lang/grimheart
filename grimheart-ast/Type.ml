@@ -61,5 +61,7 @@ module Sugar = struct
 
   let ap a b = Apply (a, b)
 
+  let k_ap a b = KindApply (a, b)
+
   let an a b = Annotate (a, b)
 end

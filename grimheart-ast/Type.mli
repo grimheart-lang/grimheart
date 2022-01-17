@@ -56,6 +56,9 @@ module Sugar : sig
   val ap : t -> t -> t
   (** Smart constructor for creating applications. *)
 
+  val k_ap : t -> t -> t
+  (** Smart constructor for creating kind applications. *)
+
   val an : t -> t -> t
   (** Smart constructor for creating annotations. *)
 end

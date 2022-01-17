@@ -96,6 +96,9 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | Apply (a1, b1), Apply (a2, b2) ->
       let* gamma = unify gamma a1 a2 in
       unify gamma b1 b2
+  | KindApply (a1, b1), KindApply (a2, b2) ->
+      let* gamma = Kinds.unify gamma b1 b2 in
+      unify gamma a1 a2
   | _U, Annotate (_T, _K) ->
       let* gamma, _ = Kinds.check gamma _U _K in
       unify gamma _U _T
@@ -145,10 +148,14 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       in
       let* theta = solve gamma a' _A in
       solve theta b' (Context.apply theta _B)
-  | KindApply (_, _) ->
-      (* KindApply isn't user-facing, so we shouldn't ever handle it when
-         performing instantiation. *)
-      raise (Failure "instantiate: called with KindApply")
+  | KindApply (_A, _B) ->
+      let a' = fresh_name () in
+      let b' = fresh_name () in
+      let gamma =
+        insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.k_ap
+      in
+      let* theta = solve gamma a' _A in
+      solve theta b' (Context.apply theta _B)
   | Annotate (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
