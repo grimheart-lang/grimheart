@@ -15,17 +15,14 @@ let fresh_name : unit -> string =
     incr i;
     "k" ^ string_of_int !i
 
-let scoped (context : Context.t) (element : Context.Element.t)
-    (action : Context.t -> (Context.t, Grimheart_errors.t) result) :
-    (Context.t, Grimheart_errors.t) result =
-  let* context' = action (element :: context) in
-  Ok (Context.discard_up_to element context')
-
 let scoped_unsolved (context : Context.t) (unsolved : string) (kind : Type.t)
     (action : Context.t -> ('a, Grimheart_errors.t) result) :
     ('a, Grimheart_errors.t) result =
-  scoped context (Marker unsolved) (fun context ->
-      action (KindedUnsolved (unsolved, kind) :: context))
+  let marker = Context.Element.Marker unsolved in
+  let* context' =
+    action (KindedUnsolved (unsolved, kind) :: marker :: context)
+  in
+  Ok (Context.discard_up_to marker context')
 
 let should_instantiate : Type.t -> bool = function
   | Forall _ -> true
