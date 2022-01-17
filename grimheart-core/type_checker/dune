@@ -1,8 +1,8 @@
 (library
- (name grimheart_type_checker)
- (libraries core_kernel dolog grimheart_ast grimheart_errors)
+ (name grimheart_core_type_checker)
+ (public_name grimheart_core.type_checker)
+ (libraries core_kernel dolog grimheart_ast grimheart_core.errors)
  (instrumentation
   (backend bisect_ppx))
  (preprocess
-  (pps ppx_deriving.eq ppx_deriving.show))
- (package grimheart_core))
+  (pps ppx_deriving.eq ppx_deriving.show)))

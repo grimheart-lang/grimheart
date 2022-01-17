@@ -7,7 +7,7 @@
    https://arxiv.org/pdf/1911.06153.pdf *)
 open Core_kernel
 open Grimheart_ast
-open Grimheart_errors.Let
+open Grimheart_core_errors.Let
 
 let fresh_name : unit -> string =
   let i = ref (-1) in
@@ -16,8 +16,8 @@ let fresh_name : unit -> string =
     "k" ^ string_of_int !i
 
 let scoped_unsolved (context : Context.t) (unsolved : string) (kind : Type.t)
-    (action : Context.t -> ('a, Grimheart_errors.t) result) :
-    ('a, Grimheart_errors.t) result =
+    (action : Context.t -> ('a, Grimheart_core_errors.t) result) :
+    ('a, Grimheart_core_errors.t) result =
   let marker = Context.Element.Marker unsolved in
   let* context' =
     action (KindedUnsolved (unsolved, kind) :: marker :: context)
@@ -29,7 +29,7 @@ let should_instantiate : Type.t -> bool = function
   | _ -> false
 
 let rec instantiate (ctx : Context.t) ((t1, k1) : Type.t * Type.t) (k2 : Type.t)
-    : (Context.t * Type.t, Grimheart_errors.t) result =
+    : (Context.t * Type.t, Grimheart_core_errors.t) result =
   match k1 with
   (* A-INST_FORALL *)
   | Forall (a, Some k, t) when should_instantiate k2 ->
@@ -44,13 +44,13 @@ let rec instantiate (ctx : Context.t) ((t1, k1) : Type.t * Type.t) (k2 : Type.t)
       Ok (ctx, t1)
 
 and check (ctx : Context.t) (t : Type.t) (w : Type.t) :
-    (Context.t * Type.t, Grimheart_errors.t) result =
+    (Context.t * Type.t, Grimheart_core_errors.t) result =
   (* A-KC-SUB *)
   let* ctx, t, k = infer ctx t in
   instantiate ctx (t, Context.apply ctx w) (Context.apply ctx k)
 
 and infer (ctx : Context.t) (t : Type.t) :
-    (Context.t * Type.t * Type.t, Grimheart_errors.t) result =
+    (Context.t * Type.t * Type.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
   match t with
   (* A-KTT-CON *)
@@ -70,7 +70,7 @@ and infer (ctx : Context.t) (t : Type.t) :
       in
       match List.find_map ctx ~f with
       | Some k -> Ok (ctx, t, Context.apply ctx k)
-      | None -> Error (Grimheart_errors.UnknownVariable a))
+      | None -> Error (Grimheart_core_errors.UnknownVariable a))
   (* A-KTT-KUVAR *)
   | Unsolved u ->
       let* _, k, _ = Context.break_apart_at_kinded_unsolved u ctx in
@@ -118,7 +118,7 @@ and infer (ctx : Context.t) (t : Type.t) :
       Ok (ctx, t1, Context.apply ctx t2)
 
 and infer_apply (ctx : Context.t) ((fn, fnKind) : Type.t * Type.t) (ar : Type.t)
-    : (Context.t * Type.t * Type.t, Grimheart_errors.t) result =
+    : (Context.t * Type.t * Type.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
   match fnKind with
   (* A-KAPP-FORALL *)
@@ -154,7 +154,7 @@ and infer_apply (ctx : Context.t) ((fn, fnKind) : Type.t * Type.t) (ar : Type.t)
   | _ -> failwith "infer_apply: todo: add a better error"
 
 and elaborate (ctx : Context.t) (_T : Type.t) :
-    (Type.t, Grimheart_errors.t) result =
+    (Type.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
   match _T with
   (* A-ELA-TCON *)
@@ -178,7 +178,7 @@ and elaborate (ctx : Context.t) (_T : Type.t) :
       in
       match List.find_map ctx ~f with
       | Some k -> Ok (Context.apply ctx k)
-      | None -> Error (Grimheart_errors.UnknownVariable a))
+      | None -> Error (Grimheart_core_errors.UnknownVariable a))
   (* A-ELA-APP *)
   | Apply (p1, _) -> (
       let* w1_w2 = elaborate ctx p1 in
@@ -199,7 +199,7 @@ and elaborate (ctx : Context.t) (_T : Type.t) :
   | Annotate (_, _K) -> Ok _K
 
 and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
-    (Context.t, Grimheart_errors.t) result =
+    (Context.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
   match (t1, t2) with
   | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
@@ -239,7 +239,7 @@ and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
   | _ -> failwith "unify: FALLTHROUGH: todo: raise a more appropriate error"
 
 and promote (ctx : Context.t) (a : string) (t : Type.t) :
-    (Context.t * Type.t, Grimheart_errors.t) result =
+    (Context.t * Type.t, Grimheart_core_errors.t) result =
   match t with
   (* A-PR-KUVARL / A-PR-KUVARR-TT *)
   | Unsolved b -> (
@@ -269,7 +269,7 @@ and promote (ctx : Context.t) (a : string) (t : Type.t) :
   | _ -> Ok (ctx, t)
 
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
-    (Context.t, Grimheart_errors.t) result =
+    (Context.t, Grimheart_core_errors.t) result =
   let* ctx, p2 = promote ctx a p1 in
   let* ctx2, w1, ctx1 = Context.break_apart_at_kinded_unsolved a ctx in
   let* w2 = elaborate ctx1 p2 in
