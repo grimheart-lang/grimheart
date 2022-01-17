@@ -1,0 +1,4 @@
+(library
+ (name grimheart_core)
+ (public_name grimheart_core)
+ (libraries grimheart_errors grimheart_type_checker))

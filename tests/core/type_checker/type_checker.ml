@@ -1,12 +1,12 @@
-open Sulfur_ast
-open Sulfur_type_checker
+open Grimheart_ast
+open Grimheart_type_checker
 
 module Test_utils = struct
   let testable_type_error =
     let open Alcotest in
     result
       (testable Type.pp Type.equal)
-      (testable Sulfur_errors.pp Sulfur_errors.equal)
+      (testable Grimheart_errors.pp Grimheart_errors.equal)
 
   let infer_type_check_test_case annotation speed expected value =
     let check () =

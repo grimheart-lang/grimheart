@@ -1,6 +1,6 @@
 open Core_kernel
-open Sulfur_ast
-open Sulfur_errors.Let
+open Grimheart_ast
+open Grimheart_errors.Let
 
 (** [fresh_name ()] generates a unique name to avoid collisions. *)
 let fresh_name : unit -> string =
@@ -10,7 +10,7 @@ let fresh_name : unit -> string =
     "t" ^ string_of_int !i
 
 let rec well_formed_type (context : Context.t) (_T : Type.t) :
-    (unit, Sulfur_errors.t) result =
+    (unit, Grimheart_errors.t) result =
   match _T with
   | Constructor _ -> Ok ()
   | Variable v ->
@@ -32,19 +32,19 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
       Ok ()
 
 let scoped (context : Context.t) (element : Context.Element.t)
-    (action : Context.t -> (Context.t, Sulfur_errors.t) result) :
-    (Context.t, Sulfur_errors.t) result =
+    (action : Context.t -> (Context.t, Grimheart_errors.t) result) :
+    (Context.t, Grimheart_errors.t) result =
   let* context' = action (element :: context) in
   Ok (Context.discard_up_to element context')
 
 let scoped_unsolved (context : Context.t) (unsolved : string)
-    (action : Context.t -> ('a, Sulfur_errors.t) result) :
-    ('a, Sulfur_errors.t) result =
+    (action : Context.t -> ('a, Grimheart_errors.t) result) :
+    ('a, Grimheart_errors.t) result =
   scoped context (Marker unsolved) (fun context ->
       action (Unsolved unsolved :: context))
 
 let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
-    (Context.t, Sulfur_errors.t) result =
+    (Context.t, Grimheart_errors.t) result =
   let open Type.Primitives in
   match (_A, _B) with
   | Constructor a, Constructor b when String.equal a b ->
@@ -97,12 +97,12 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | _ -> Error (FailedUnification (_A, _B))
 
 and solve (gamma : Context.t) (a : string) (_B : Type.t) :
-    (Context.t, Sulfur_errors.t) result =
+    (Context.t, Grimheart_errors.t) result =
   let open Type.Primitives in
   let* (gammaL, gammaR) : Context.t * Context.t =
     Context.break_apart_at_unsolved a gamma
   in
-  let insertSolved (t : Type.t) : (Context.t, Sulfur_errors.t) result =
+  let insertSolved (t : Type.t) : (Context.t, Grimheart_errors.t) result =
     let* _ = well_formed_type gammaR _B in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
@@ -172,7 +172,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       solve theta b' (Context.apply theta _B)
 
 and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
-    (Context.t, Sulfur_errors.t) result =
+    (Context.t, Grimheart_errors.t) result =
   let open Type.Primitives in
   match (e, _A) with
   | Literal (Char _), Constructor "Char"
@@ -205,7 +205,7 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       unify theta (Context.apply theta _A') (Context.apply theta _A)
 
 and infer (gamma : Context.t) (e : _ Expr.t) :
-    (Context.t * Type.t, Sulfur_errors.t) result =
+    (Context.t * Type.t, Grimheart_errors.t) result =
   let open Type.Primitives in
   match e with
   | Literal (Char _) -> Ok (gamma, t_char)
@@ -215,7 +215,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
   | Literal (Array _As) ->
       let a = fresh_name () in
       let rec aux (gamma : Context.t) (current_t : Type.t option) :
-          _ -> (Context.t * Type.t, Sulfur_errors.t) result = function
+          _ -> (Context.t * Type.t, Grimheart_errors.t) result = function
         | h :: t -> (
             let* gamma, inferred_t = infer gamma h in
             match (inferred_t, current_t) with
@@ -275,7 +275,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
       infer (Variable (v', t) :: gamma) (Expr.substitute v (Variable v') e2)
 
 and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
-    (Context.t * Type.t, Sulfur_errors.t) result =
+    (Context.t * Type.t, Grimheart_errors.t) result =
   let open Type.Primitives in
   match _A with
   | Forall (a, _K, _A) ->
@@ -303,7 +303,7 @@ and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
   | _ -> Error (FailedInfererence (e, _A))
 
 let infer_type_with (context : Context.t) (e : _ Expr.t) :
-    (Type.t, Sulfur_errors.t) result =
+    (Type.t, Grimheart_errors.t) result =
   let* delta, poly_type = infer context e in
   let fresh_variable =
     let i = ref (-1) in
@@ -320,5 +320,5 @@ let infer_type_with (context : Context.t) (e : _ Expr.t) :
   in
   Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
 
-let infer_type : _ Expr.t -> (Type.t, Sulfur_errors.t) result =
+let infer_type : _ Expr.t -> (Type.t, Grimheart_errors.t) result =
   infer_type_with []

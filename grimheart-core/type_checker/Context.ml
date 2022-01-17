@@ -1,8 +1,8 @@
 (** Type-checking context. *)
 open Core_kernel
 
-open Sulfur_ast
-open Sulfur_errors
+open Grimheart_ast
+open Grimheart_errors
 
 module Element = struct
   type t =
@@ -58,7 +58,7 @@ let discard_up_to (element : Element.t) (context : t) : t =
   aux context
 
 let break_apart_at (element : Element.t) (context : t) :
-    (t * t, Sulfur_errors.t) result =
+    (t * t, Grimheart_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
     | [] -> Error FailedToBreakApart
     | current :: rest ->
@@ -69,7 +69,7 @@ let break_apart_at (element : Element.t) (context : t) :
   aux [] context
 
 let break_apart_at_unsolved (a : string) (context : t) :
-    (t * t, Sulfur_errors.t) result =
+    (t * t, Grimheart_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
     | [] -> Error FailedToBreakApart
     | Unsolved a' :: rest when String.equal a a' -> Ok (List.rev collected, rest)
@@ -78,7 +78,7 @@ let break_apart_at_unsolved (a : string) (context : t) :
   aux [] context
 
 let break_apart_at_kinded_unsolved (a : string) (context : t) :
-    (t * Type.t * t, Sulfur_errors.t) result =
+    (t * Type.t * t, Grimheart_errors.t) result =
   let rec aux (collected : t) : t -> (t * Type.t * t, _) result = function
     | [] -> Error FailedToBreakApart
     | KindedUnsolved (a', k) :: rest when String.equal a a' ->

@@ -1,5 +1,5 @@
 (test
  (name type_checker)
- (libraries alcotest sulfur_ast sulfur_core)
+ (libraries alcotest grimheart_ast grimheart_core)
  (preprocess
   (pps ppx_deriving.show)))

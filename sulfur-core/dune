@@ -1,4 +1,0 @@
-(library
- (name sulfur_core)
- (public_name sulfur_core)
- (libraries sulfur_errors sulfur_type_checker))

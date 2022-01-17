@@ -1,8 +1,0 @@
-(library
- (name sulfur_type_checker)
- (libraries core_kernel dolog sulfur_ast sulfur_errors)
- (instrumentation
-  (backend bisect_ppx))
- (preprocess
-  (pps ppx_deriving.eq ppx_deriving.show))
- (package sulfur_core))

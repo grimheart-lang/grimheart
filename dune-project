@@ -1,19 +1,19 @@
 (lang dune 2.9)
 
-(name "sulfur")
+(name "grimheart")
 (version "0.1.0")
 (maintainers "Justin Garcia")
 (authors "Justin Garcia")
 (license "BSD-3-Clause")
-(homepage "https://github.com/sjpgarcia/sulfur")
-(bug_reports "https://github.com/sjpgarcia/sulfur/issues")
+(homepage "https://github.com/grimheart-lang/grimheart")
+(bug_reports "https://github.com/grimheart-lang/grimheart/issues")
 
 (using menhir 2.1)
 
 (generate_opam_files true)
 
 (package
- (name "sulfur_ast")
+ (name "grimheart_ast")
  (synopsis "Core modules for the syntax")
  (depends
   ("core_kernel"
@@ -22,7 +22,7 @@
    (>= "5.2.1"))))
 
 (package
- (name "sulfur_core")
+ (name "grimheart_core")
  (synopsis "Core modules for the language")
  (depends
   ("alcotest"
@@ -35,5 +35,5 @@
    (>= "5.2.1"))
   ("dolog"
    (>= "6.0.0"))
-  ("sulfur_ast"
+  ("grimheart_ast"
    (= :version))))

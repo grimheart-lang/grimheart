@@ -1,5 +1,5 @@
 open Core_kernel
-open Sulfur_ast
+open Grimheart_ast
 
 type t =
   | FailedUnification of Type.t * Type.t
