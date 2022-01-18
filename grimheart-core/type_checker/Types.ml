@@ -80,7 +80,6 @@ let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
 
 and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
     (Context.t, Grimheart_core_errors.t) result =
-  let open Type.Primitives in
   match (t1, t2) with
   | Constructor a, Constructor b when String.equal a b ->
       (* todo: perform environment checks here? *)
@@ -94,12 +93,6 @@ and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
   | Unsolved a, Unsolved b
     when String.equal a b && Context.mem gamma (Unsolved a) ->
       Ok gamma
-  (* function application is funky *)
-  | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
-    when Type.equal t_function t_function1 && Type.equal t_function t_function2
-    ->
-      let* theta = unify gamma a2 a1 in
-      unify theta (Context.apply theta b1) (Context.apply theta b2)
   | Forall (a1, k1, t1), Forall (a2, k2, t2) ->
       let a' = fresh_name () in
       let t1 = Type.substitute a1 (Skolem (a', k1)) t1 in
