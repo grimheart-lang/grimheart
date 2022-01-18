@@ -6,9 +6,13 @@ val well_formed_type :
     with respect to the context. This function is used to partially verify the
     correctness of the algorithmic context. *)
 
+val subsumes :
+  Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_core_errors.t) result
+(** [subsumes t1 t2] subsumes t1 with t2. *)
+
 val unify :
   Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_core_errors.t) result
-(** [subtype _A _B] unifies the type _A with _B. *)
+(** [unify t1 t2] unifies t1 with t2. *)
 
 val solve :
   Context.t -> string -> Type.t -> (Context.t, Grimheart_core_errors.t) result

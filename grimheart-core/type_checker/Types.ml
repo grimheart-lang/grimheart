@@ -60,10 +60,30 @@ let insert_in_between ((gammaL, gammaR) : Context.t * Context.t)
   in
   List.concat [gammaL; gammaM; gammaR]
 
-let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
+let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
+          (Context.t, Grimheart_core_errors.t) result =
+  let open Type.Primitives in
+  match (t1, t2) with
+  | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
+    when Type.equal t_function t_function1 && Type.equal t_function t_function2
+    ->
+      let* theta = unify gamma a2 a1 in
+      unify theta (Context.apply theta b1) (Context.apply theta b2)
+  | _, Forall (b, _, t2) ->
+      let b' = fresh_name () in
+      let t2 = Type.substitute b (Variable b') t2 in
+      scoped gamma (Quantified b') (fun gamma -> subsumes gamma t1 t2)
+  | Forall (a, _, t1), _ ->
+      let a' = fresh_name () in
+      let t1 = Type.substitute a (Unsolved a') t1 in
+      scoped_unsolved gamma a' (fun gamma -> subsumes gamma t1 t2)
+  | _ ->
+     unify gamma t1 t2
+
+and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
     (Context.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
-  match (_A, _B) with
+  match (t1, t2) with
   | Constructor a, Constructor b when String.equal a b ->
       (* todo: perform environment checks here? *)
       Ok gamma
@@ -71,7 +91,7 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
       failwith "panic! skolems aren't used in the type checker"
   | Variable a, Variable b when String.equal a b ->
       (* `a` must exist within the context *)
-      let* _ = well_formed_type gamma _A in
+      let* _ = well_formed_type gamma t1 in
       Ok gamma
   (* we only need these variables to be unsolved *)
   | Unsolved a, Unsolved b
@@ -88,22 +108,22 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
       let t1 = Type.substitute a1 (Variable a') t1 in
       let t2 = Type.substitute a2 (Variable a') t2 in
       scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
-  | _, Forall (b, _, t) ->
+  | _, Forall (b, _, t2) ->
       let b' = fresh_name () in
-      let t = Type.substitute b (Unsolved b') t in
-      scoped_unsolved gamma b' (fun gamma -> unify gamma _A t)
-  | Forall (a, _, t), _ ->
+      let t2 = Type.substitute b (Variable b') t2 in
+      scoped gamma (Quantified b') (fun gamma -> unify gamma t1 t2)
+  | Forall (a, _, t1), _ ->
       let a' = fresh_name () in
-      let t = Type.substitute a (Unsolved a') t in
-      scoped_unsolved gamma a' (fun gamma -> unify gamma t _B)
+      let t1 = Type.substitute a (Variable a') t1 in
+      scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
   | Unsolved a, _
     when Context.mem gamma (Unsolved a)
-         && not (Set.mem (Type.free_type_variables _B) a) ->
-      solve gamma a _B
+         && not (Set.mem (Type.free_type_variables t2) a) ->
+      solve gamma a t2
   | _, Unsolved b
     when Context.mem gamma (Unsolved b)
-         && not (Set.mem (Type.free_type_variables _A) b) ->
-      solve gamma b _A
+         && not (Set.mem (Type.free_type_variables t1) b) ->
+      solve gamma b t1
   | Apply (a1, b1), Apply (a2, b2) ->
       let* gamma = unify gamma a1 a2 in
       unify gamma b1 b2
@@ -116,7 +136,7 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | Annotate (_T, _K), _U ->
       let* gamma, _ = Kinds.check gamma _U _K in
       unify gamma _T _U
-  | _ -> Error (FailedUnification (_A, _B))
+  | _ -> Error (FailedUnification (t1, t2))
 
 and solve (gamma : Context.t) (a : string) (_B : Type.t) :
     (Context.t, Grimheart_core_errors.t) result =
@@ -208,7 +228,7 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       scoped gamma (Quantified a') (fun gamma -> check gamma e _A)
   | _ ->
       let* theta, _A' = infer gamma e in
-      unify theta (Context.apply theta _A') (Context.apply theta _A)
+      subsumes theta (Context.apply theta _A') (Context.apply theta _A)
 
 and infer (gamma : Context.t) (e : _ Expr.t) :
     (Context.t * Type.t, Grimheart_core_errors.t) result =
