@@ -13,10 +13,20 @@ module Element : sig
     | Marker of string
 
   val equal : t -> t -> bool
+
+  val pp : Format.formatter -> t -> unit
+
+  val show : t -> string
 end
 
 (** The type of the context. *)
 type t = Element.t list
+
+val equal : t -> t -> bool
+
+val pp : Format.formatter -> t -> unit
+
+val show : t -> string
 
 val apply : t -> Type.t -> Type.t
 (** [apply context _T] applies a context to a type _T. This takes all unsolved

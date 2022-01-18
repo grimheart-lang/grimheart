@@ -14,10 +14,10 @@ module Element = struct
     | KindedUnsolved of string * Type.t
     | KindedSolved of string * Type.t * Type.t
     | Marker of string
-  [@@deriving eq]
+  [@@deriving eq, show]
 end
 
-type t = Element.t list
+type t = Element.t list [@@deriving eq, show]
 
 let rec apply (context : t) (t : Type.t) : Type.t =
   let open Type in
