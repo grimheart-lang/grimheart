@@ -13,8 +13,7 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
     (unit, Grimheart_core_errors.t) result =
   match _T with
   | Constructor _ -> Ok ()
-  | Skolem _ -> failwith "panic! skolems aren't used by the type checker."
-  | Variable v ->
+  | Skolem (v, _) | Variable v ->
       if Context.mem context (Quantified v)
       then Ok ()
       else Error (IllFormedType _T)
@@ -61,7 +60,7 @@ let insert_in_between ((gammaL, gammaR) : Context.t * Context.t)
   List.concat [gammaL; gammaM; gammaR]
 
 let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
-          (Context.t, Grimheart_core_errors.t) result =
+    (Context.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
   match (t1, t2) with
   | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
@@ -69,16 +68,15 @@ let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
     ->
       let* theta = unify gamma a2 a1 in
       unify theta (Context.apply theta b1) (Context.apply theta b2)
-  | _, Forall (b, _, t2) ->
+  | _, Forall (b, k2, t2) ->
       let b' = fresh_name () in
-      let t2 = Type.substitute b (Variable b') t2 in
+      let t2 = Type.substitute b (Skolem (b', k2)) t2 in
       scoped gamma (Quantified b') (fun gamma -> subsumes gamma t1 t2)
   | Forall (a, _, t1), _ ->
       let a' = fresh_name () in
       let t1 = Type.substitute a (Unsolved a') t1 in
       scoped_unsolved gamma a' (fun gamma -> subsumes gamma t1 t2)
-  | _ ->
-     unify gamma t1 t2
+  | _ -> unify gamma t1 t2
 
 and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
     (Context.t, Grimheart_core_errors.t) result =
@@ -87,9 +85,8 @@ and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
   | Constructor a, Constructor b when String.equal a b ->
       (* todo: perform environment checks here? *)
       Ok gamma
-  | Skolem _, _ | _, Skolem _ ->
-      failwith "panic! skolems aren't used in the type checker"
-  | Variable a, Variable b when String.equal a b ->
+  | (Skolem (a, _), Skolem (b, _) | Variable a, Variable b)
+    when String.equal a b ->
       (* `a` must exist within the context *)
       let* _ = well_formed_type gamma t1 in
       Ok gamma
@@ -103,18 +100,18 @@ and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
     ->
       let* theta = unify gamma a2 a1 in
       unify theta (Context.apply theta b1) (Context.apply theta b2)
-  | Forall (a1, _, t1), Forall (a2, _, t2) ->
+  | Forall (a1, k1, t1), Forall (a2, k2, t2) ->
       let a' = fresh_name () in
-      let t1 = Type.substitute a1 (Variable a') t1 in
-      let t2 = Type.substitute a2 (Variable a') t2 in
+      let t1 = Type.substitute a1 (Skolem (a', k1)) t1 in
+      let t2 = Type.substitute a2 (Skolem (a', k2)) t2 in
       scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
-  | _, Forall (b, _, t2) ->
+  | _, Forall (b, k2, t2) ->
       let b' = fresh_name () in
-      let t2 = Type.substitute b (Variable b') t2 in
+      let t2 = Type.substitute b (Skolem (b', k2)) t2 in
       scoped gamma (Quantified b') (fun gamma -> unify gamma t1 t2)
-  | Forall (a, _, t1), _ ->
+  | Forall (a, k1, t1), _ ->
       let a' = fresh_name () in
-      let t1 = Type.substitute a (Variable a') t1 in
+      let t1 = Type.substitute a (Skolem (a', k1)) t1 in
       scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
   | Unsolved a, _
     when Context.mem gamma (Unsolved a)
@@ -151,7 +148,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
   match _B with
   | Constructor _ -> insertSolved _B
   | Variable _ -> insertSolved _B
-  | Skolem _ -> failwith "panic! skolems aren't used by the type checker!"
+  | Skolem _ -> insertSolved _B
   | Unsolved b -> (
       match Context.break_apart_at_unsolved b gammaL with
       | Error _ -> insertSolved _B
@@ -222,9 +219,9 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
       scoped gamma
         (Variable (n', _A1))
         (fun gamma -> check gamma (Expr.substitute n (Variable n') e) _A2)
-  | _, Forall (a, _, _A) ->
+  | _, Forall (a, k, _A) ->
       let a' = fresh_name () in
-      let _A = Type.substitute a (Variable a') _A in
+      let _A = Type.substitute a (Skolem (a', k)) _A in
       scoped gamma (Quantified a') (fun gamma -> check gamma e _A)
   | _ ->
       let* theta, _A' = infer gamma e in
