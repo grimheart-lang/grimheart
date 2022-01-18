@@ -161,7 +161,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       let* theta = solve gamma a' _A in
       solve theta b' (Context.apply theta _B)
   | Forall (b, _, _B) ->
-      scoped gamma (Quantified b) (fun gamma -> solve gamma b _B)
+      scoped gamma (Quantified b) (fun gamma -> solve gamma a _B)
   | Apply (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
