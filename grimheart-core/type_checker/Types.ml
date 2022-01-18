@@ -13,11 +13,7 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
     (unit, Grimheart_core_errors.t) result =
   match _T with
   | Constructor _ -> Ok ()
-  | Skolem (v, k) -> (
-      match k with
-      | Some k when Context.mem context (KindedQuantified (v, k)) -> Ok ()
-      | None when Context.mem context (Quantified v) -> Ok ()
-      | _ -> Error (IllFormedType _T))
+  | Skolem _ -> failwith "panic! skolems aren't used by the type checker."
   | Variable v ->
       if Context.mem context (Quantified v)
       then Ok ()
@@ -71,6 +67,8 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
   | Constructor a, Constructor b when String.equal a b ->
       (* todo: perform environment checks here? *)
       Ok gamma
+  | Skolem _, _ | _, Skolem _ ->
+      failwith "panic! skolems aren't used in the type checker"
   | Variable a, Variable b when String.equal a b ->
       (* `a` must exist within the context *)
       let* _ = well_formed_type gamma _A in
@@ -85,19 +83,19 @@ let rec unify (gamma : Context.t) (_A : Type.t) (_B : Type.t) :
     ->
       let* theta = unify gamma a2 a1 in
       unify theta (Context.apply theta b1) (Context.apply theta b2)
-  | Forall (a1, _, _A1), Forall (a2, _, _A2) ->
+  | Forall (a1, _, t1), Forall (a2, _, t2) ->
       let a' = fresh_name () in
-      let _A1 = Type.substitute a1 (Variable a') _A1 in
-      let _A2 = Type.substitute a2 (Variable a') _A2 in
-      scoped gamma (Quantified a') (fun gamma -> unify gamma _A1 _A2)
-  | _, Forall (b, _K, _B) ->
+      let t1 = Type.substitute a1 (Variable a') t1 in
+      let t2 = Type.substitute a2 (Variable a') t2 in
+      scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
+  | _, Forall (b, _, t) ->
       let b' = fresh_name () in
-      let _B = Type.substitute b (Unsolved b') _B in
-      scoped_unsolved gamma b' (fun gamma -> unify gamma _A _B)
-  | Forall (a, _K, _A), _ ->
+      let t = Type.substitute b (Unsolved b') t in
+      scoped_unsolved gamma b' (fun gamma -> unify gamma _A t)
+  | Forall (a, _, t), _ ->
       let a' = fresh_name () in
-      let _A = Type.substitute a (Unsolved a') _A in
-      scoped_unsolved gamma a' (fun gamma -> unify gamma _A _B)
+      let t = Type.substitute a (Unsolved a') t in
+      scoped_unsolved gamma a' (fun gamma -> unify gamma t _B)
   | Unsolved a, _
     when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables _B) a) ->
@@ -133,7 +131,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
   match _B with
   | Constructor _ -> insertSolved _B
   | Variable _ -> insertSolved _B
-  | Skolem _ -> insertSolved _B
+  | Skolem _ -> failwith "panic! skolems aren't used by the type checker!"
   | Unsolved b -> (
       match Context.break_apart_at_unsolved b gammaL with
       | Error _ -> insertSolved _B
