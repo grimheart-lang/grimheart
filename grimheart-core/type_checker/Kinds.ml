@@ -15,6 +15,12 @@ let fresh_name : unit -> string =
     incr i;
     "k" ^ string_of_int !i
 
+let scoped (context : Context.t) (element : Context.Element.t)
+    (action : Context.t -> (Context.t, Grimheart_core_errors.t) result) :
+    (Context.t, Grimheart_core_errors.t) result =
+  let* context' = action (element :: context) in
+  Ok (Context.discard_up_to element context')
+
 let scoped_unsolved (context : Context.t) (unsolved : string) (kind : Type.t)
     (action : Context.t -> ('a, Grimheart_core_errors.t) result) :
     ('a, Grimheart_core_errors.t) result =
@@ -40,7 +46,7 @@ let rec instantiate (ctx : Context.t) ((t1, k1) : Type.t * Type.t) (k2 : Type.t)
         k2
   (* A-INST-REFL *)
   | _ ->
-      let* ctx = unify ctx k1 k2 in
+      let* ctx = subsumes ctx k1 k2 in
       Ok (ctx, t1)
 
 and check (ctx : Context.t) (t : Type.t) (w : Type.t) :
@@ -71,6 +77,13 @@ and infer (ctx : Context.t) (t : Type.t) :
       match List.find_map ctx ~f with
       | Some k -> Ok (ctx, t, Context.apply ctx k)
       | None -> Error (Grimheart_core_errors.UnknownVariable a))
+  (* A-KTT-SKOLEM *)
+  | Skolem (_, k) -> (
+      match k with
+      | Some k -> Ok (ctx, t, Context.apply ctx k)
+      | None ->
+          Error (InternalKindCheckerError "infer: skolem variable has no kind.")
+      )
   (* A-KTT-KUVAR *)
   | Unsolved u ->
       let* _, k, _ = Context.break_apart_at_kinded_unsolved u ctx in
@@ -164,6 +177,11 @@ and elaborate (ctx : Context.t) (_T : Type.t) :
     (Type.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
   match _T with
+  | Skolem (_, k) -> (
+      match k with
+      | Some k -> Ok (Context.apply ctx k)
+      | None ->
+          Error (InternalKindCheckerError "elaborate: skolem has no kind."))
   (* A-ELA-TCON *)
   | Constructor _ when is_primitive_type _T -> Ok t_type
   | Constructor _ when is_primitive_type_type _T ->
@@ -219,33 +237,39 @@ and elaborate (ctx : Context.t) (_T : Type.t) :
   (* A-ELA-ANNOTATE *)
   | Annotate (_, _K) -> Ok _K
 
-and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
+and subsumes (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
     (Context.t, Grimheart_core_errors.t) result =
   let open Type.Primitives in
   match (t1, t2) with
   | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
     when Type.equal t_function t_function1 && Type.equal t_function t_function2
     ->
-      let* ctx = unify ctx a2 a1 in
-      unify ctx (Context.apply ctx b1) (Context.apply ctx b2)
-  | _, Forall (b, k, t) -> (
+      let* ctx = subsumes ctx a2 a1 in
+      subsumes ctx (Context.apply ctx b1) (Context.apply ctx b2)
+  | _, Forall (b, k, t) ->
       let b' = fresh_name () in
-      let t = Type.substitute b (Unsolved b') t in
-      match k with
-      | Some k -> scoped_unsolved ctx b' k (fun ctx -> unify ctx t1 t)
-      | None ->
-          let k' = fresh_name () in
-          scoped_unsolved ctx k' t_type (fun ctx ->
-              scoped_unsolved ctx b' (Unsolved k') (fun ctx -> unify ctx t1 t)))
+      let t = Type.substitute b (Skolem (b', k)) t in
+      let m =
+        match k with
+        | Some k -> Context.Element.KindedQuantified (b', k)
+        | None -> Context.Element.Quantified b'
+      in
+      scoped ctx m (fun ctx -> subsumes ctx t1 t)
   | Forall (a, k, t), _ -> (
       let a' = fresh_name () in
       let t = Type.substitute a (Unsolved a') t in
       match k with
-      | Some k -> scoped_unsolved ctx a' k (fun ctx -> unify ctx t t2)
+      | Some k -> scoped_unsolved ctx a' k (fun ctx -> subsumes ctx t t2)
       | None ->
           let k' = fresh_name () in
           scoped_unsolved ctx k' t_type (fun ctx ->
-              scoped_unsolved ctx a' (Unsolved k') (fun ctx -> unify ctx t t2)))
+              scoped_unsolved ctx a' (Unsolved k') (fun ctx ->
+                  subsumes ctx t t2)))
+  | _ -> unify ctx t1 t2
+
+and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
+    (Context.t, Grimheart_core_errors.t) result =
+  match (t1, t2) with
   (* A-U-APP *)
   | Apply (p1, p2), Apply (p3, p4) ->
       let* gamma = unify ctx p1 p3 in

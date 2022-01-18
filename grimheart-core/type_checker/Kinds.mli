@@ -30,6 +30,12 @@ val elaborate :
   -> Grimheart_ast.Type.t
   -> (Grimheart_ast.Type.t, Grimheart_core_errors.t) result
 
+val subsumes :
+     Context.t
+  -> Grimheart_ast.Type.t
+  -> Grimheart_ast.Type.t
+  -> (Context.t, Grimheart_core_errors.t) result
+
 val unify :
      Context.t
   -> Grimheart_ast.Type.t

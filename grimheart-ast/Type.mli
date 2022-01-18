@@ -4,6 +4,7 @@ type type_vars_t = Core_kernel.Set.M(Core_kernel.String).t
 type t =
   | Constructor of string
   | Variable of string
+  | Skolem of string * t option
   | Unsolved of string
   | Forall of string * t option * t
   | Apply of t * t
