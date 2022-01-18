@@ -13,6 +13,11 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
     (unit, Grimheart_core_errors.t) result =
   match _T with
   | Constructor _ -> Ok ()
+  | Skolem (v, k) -> (
+      match k with
+      | Some k when Context.mem context (KindedQuantified (v, k)) -> Ok ()
+      | None when Context.mem context (Quantified v) -> Ok ()
+      | _ -> Error (IllFormedType _T))
   | Variable v ->
       if Context.mem context (Quantified v)
       then Ok ()
@@ -128,6 +133,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
   match _B with
   | Constructor _ -> insertSolved _B
   | Variable _ -> insertSolved _B
+  | Skolem _ -> insertSolved _B
   | Unsolved b -> (
       match Context.break_apart_at_unsolved b gammaL with
       | Error _ -> insertSolved _B

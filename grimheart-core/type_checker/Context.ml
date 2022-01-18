@@ -24,6 +24,8 @@ let rec apply (context : t) (t : Type.t) : Type.t =
   match t with
   | Constructor _ -> t
   | Variable _ -> t
+  | Skolem (a, k) -> (
+      match k with Some k -> Skolem (a, Some (apply context k)) | None -> t)
   | Unsolved u ->
       let find_solved = function
         | (Element.Solved (u', t) | Element.KindedSolved (u', _, t))
