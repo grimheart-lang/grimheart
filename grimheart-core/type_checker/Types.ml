@@ -118,8 +118,8 @@ and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
       let* gamma = unify gamma a1 a2 in
       unify gamma b1 b2
   | KindApply (a1, b1), KindApply (a2, b2) ->
-      let* gamma = Kinds.unify gamma b1 b2 in
-      unify gamma a1 a2
+      let* gamma = Kinds.unify gamma a1 a2 in
+      unify gamma b1 b2
   | _U, Annotate (_T, _K) ->
       let* gamma, _ = Kinds.check gamma _U _K in
       unify gamma _U _T
