@@ -13,10 +13,14 @@ let rec well_formed_type (context : Context.t) (_T : Type.t) :
     (unit, Grimheart_core_errors.t) result =
   match _T with
   | Constructor _ -> Ok ()
-  | Skolem (v, _) | Variable v ->
-      if Context.mem context (Quantified v)
-      then Ok ()
-      else Error (IllFormedType _T)
+  | Skolem (v, _) ->
+     if Context.mem context (Quantified v)
+     then Ok ()
+     else Error (EscapedSkolemVariable _T)
+  | Variable v ->
+     if Context.mem context (Quantified v)
+     then Ok ()
+     else Error (VariableNotInScope _T)
   | Unsolved u -> (
       let predicate : Context.Element.t -> bool = function
         | Unsolved u'
