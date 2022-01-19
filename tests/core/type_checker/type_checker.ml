@@ -2,7 +2,11 @@ open Core_kernel
 open Grimheart_ast
 open Grimheart_core_type_checker
 
-module Test_utils = struct
+module type TEST_INPUT = sig
+  val context : Context.t
+end
+
+module Test_utils (I : TEST_INPUT) = struct
   let testable_type_error =
     let open Alcotest in
     result
@@ -18,60 +22,61 @@ module Test_utils = struct
   let infer_type_check_test_case annotation expected value =
     let check () =
       Alcotest.check testable_type_error annotation (Ok expected)
-        (Types.infer_type value)
+        (Types.infer_type_with I.context value)
     in
     Alcotest.test_case annotation `Quick check
 
-  let subsumes_test_case annotation t1 t2 =
-    let check () =
-      Alcotest.(check bool)
-        annotation true
-        (Result.is_ok @@ Types.subsumes [] t1 t2)
-    in
-    Alcotest.test_case annotation `Quick check
-
-  let subsumes_fail_case annotation t1 t2 =
+  let infer_type_check_fail_case annotation value =
     let check () =
       Alcotest.(check bool)
         annotation false
-        (Result.is_ok @@ Types.subsumes [] t1 t2)
+        (Result.is_ok @@ Types.infer_type_with I.context value)
     in
     Alcotest.test_case annotation `Quick check
 
-  let unify_test_case annotation t1 t2 =
+  let t1_t2_test_case fn annotation t1 t2 =
     let check () =
-      Alcotest.(check bool)
-        annotation true
-        (Result.is_ok @@ Types.unify [Unsolved "A"; Unsolved "B"] t1 t2)
+      Alcotest.(check bool) annotation true (Result.is_ok @@ fn I.context t1 t2)
     in
     Alcotest.test_case annotation `Quick check
 
-  let unify_fail_case annotation t1 t2 =
+  let t1_t2_fail_case fn annotation t1 t2 =
     let check () =
-      Alcotest.(check bool)
-        annotation false
-        (Result.is_ok @@ Types.unify [] t1 t2)
+      Alcotest.(check bool) annotation false (Result.is_ok @@ fn I.context t1 t2)
     in
     Alcotest.test_case annotation `Quick check
 
-  module Sweeter = struct
-    include Grimheart_ast.Type.Primitives
-    include Grimheart_ast.Type.Sugar
+  let subsumes_test_case = t1_t2_test_case Types.subsumes
 
-    let forall a t = Type.Forall (a, None, t)
+  let subsumes_fail_case = t1_t2_fail_case Types.subsumes
 
-    let forall' a k t = Type.Forall (a, Some k, t)
+  let unify_test_case = t1_t2_test_case Types.unify
 
-    let var a = Type.Variable a
+  let unify_fail_case = t1_t2_fail_case Types.unify
 
-    let uns a = Type.Unsolved a
-  end
+  let check_fail_case = t1_t2_fail_case Types.check
+
+  include Type.Primitives
+  include Type.Sugar
+end
+
+module Test_input : TEST_INPUT = struct
+  open Type.Sugar
+
+  let context : Context.t =
+    [
+      Unsolved "A"
+    ; Unsolved "B"
+    ; Variable ("identity", forall "a" @@ fn (var "a") (var "a"))
+    ; Variable
+        ( "escape"
+        , forall "a" @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a") )
+    ]
 end
 
 let () =
   let open Alcotest in
-  let open Test_utils in
-  let open Test_utils.Sweeter in
+  let open Test_utils (Test_input) in
   run "Core"
     [
       ( "infer-literal-scalar"
@@ -161,5 +166,10 @@ let () =
           unify_test_case "reflexive function application unifies"
             (ap (fn t_int t_int) t_int)
             (ap (fn t_int t_int) t_int)
+        ] )
+    ; ( "infer-skolem-escapes"
+      , [
+          infer_type_check_fail_case "skolem escapes are caught"
+            (Apply (Variable "escape", Variable "identity"))
         ] )
     ]
