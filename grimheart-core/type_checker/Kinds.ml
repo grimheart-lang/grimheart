@@ -38,7 +38,7 @@ let rec instantiate (ctx : Context.t) ((t1, k1) : Type.t * Type.t) (k2 : Type.t)
     : (Context.t * Type.t, Grimheart_core_errors.t) result =
   match k1 with
   (* A-INST_FORALL *)
-  | Forall (a, Some k, t) when should_instantiate k2 ->
+  | Forall (a, Some k, t) when not @@ should_instantiate k2 ->
       let u = fresh_name () in
       instantiate
         (KindedUnsolved (u, k) :: ctx)
@@ -301,7 +301,9 @@ and promote (ctx : Context.t) (a : string) (t : Type.t) :
          instead. *)
       match Context.break_apart_at_kinded_unsolved a ctxR with
       (* A-PR-KUVARL *)
-      | Ok _ -> Ok (ctx, t)
+      | Ok (_, _, ctxL) ->
+          let* _ = Context.well_formed_type ctxL t in
+          Ok (ctx, t)
       (* A-PR-KUVARR-TT *)
       | Error _ ->
           let* ctx, p1 = promote ctx a (Context.apply ctx p) in
@@ -316,8 +318,8 @@ and promote (ctx : Context.t) (a : string) (t : Type.t) :
           in
           Ok (theta, Type.Unsolved b1))
   | _ ->
-      let* ctxR, _, _ = Context.break_apart_at_kinded_unsolved a ctx in
-      let* _ = Context.well_formed_type ctxR t in
+      let* _, _, ctxL = Context.break_apart_at_kinded_unsolved a ctx in
+      let* _ = Context.well_formed_type ctxL t in
       Ok (ctx, t)
 
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
