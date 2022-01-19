@@ -315,7 +315,10 @@ and promote (ctx : Context.t) (a : string) (t : Type.t) :
             :: theta
           in
           Ok (theta, Type.Unsolved b1))
-  | _ -> Ok (ctx, t)
+  | _ ->
+      let* ctxR, _, _ = Context.break_apart_at_kinded_unsolved a ctx in
+      let* _ = Context.well_formed_type ctxR t in
+      Ok (ctx, t)
 
 and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
     (Context.t, Grimheart_core_errors.t) result =
