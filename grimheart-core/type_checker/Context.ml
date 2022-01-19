@@ -3,6 +3,7 @@ open Core_kernel
 
 open Grimheart_ast
 open Grimheart_core_errors
+open Grimheart_core_errors.Let
 
 module Element = struct
   type t =
@@ -95,3 +96,51 @@ let unsolved : t -> t =
     | _ -> false
   in
   List.filter ~f
+
+let rec well_formed_type (context : t) (t : Type.t) :
+    (unit, Grimheart_core_errors.t) result =
+  match t with
+  | Constructor _ -> Ok ()
+  | Skolem (v, k) ->
+      let f : Element.t -> bool = function
+        | Quantified v' when String.equal v v' -> true
+        | KindedQuantified (v', k')
+          when String.equal v v'
+               && (Option.equal Type.equal k (Some k')
+                  || Option.equal Type.equal k None) ->
+            true
+        | _ -> false
+      in
+      if Option.is_some @@ List.find ~f context
+      then Ok ()
+      else Error (EscapedSkolemVariable t)
+  | Variable v ->
+      let f : Element.t -> bool = function
+        | Quantified v' when String.equal v v' -> true
+        | KindedQuantified (v', _) when String.equal v v' -> true
+        | _ -> false
+      in
+      if Option.is_some @@ List.find ~f context
+      then Ok ()
+      else Error (VariableNotInScope t)
+  | Unsolved u ->
+      let f : Element.t -> bool = function
+        | Unsolved u'
+        | KindedUnsolved (u', _)
+        | Solved (u', _)
+        | KindedSolved (u', _, _)
+          when String.equal u u' ->
+            true
+        | _ -> false
+      in
+      if Option.is_some @@ List.find ~f context
+      then Ok ()
+      else Error (VariableNotInScope t)
+  | Forall (a, k, _A) -> (
+      match k with
+      | Some k -> well_formed_type (KindedQuantified (a, k) :: context) _A
+      | None -> well_formed_type (Quantified a :: context) _A)
+  | Apply (_A, _B) | KindApply (_A, _B) | Annotate (_A, _B) ->
+      let* _ = well_formed_type context _A
+      and* _ = well_formed_type context _B in
+      Ok ()

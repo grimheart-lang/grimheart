@@ -56,3 +56,8 @@ val break_apart_at_kinded_unsolved :
 
 val unsolved : t -> t
 (** [unsolved context] collects all unsolved elements in some context. *)
+
+val well_formed_type :
+  t -> Grimheart_ast.Type.t -> (unit, Grimheart_core_errors.t) result
+(** [well_formed_type context type_] asserts the well-formedness of the type
+    with respect to the current context. *)

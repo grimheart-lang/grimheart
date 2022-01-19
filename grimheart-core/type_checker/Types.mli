@@ -1,11 +1,5 @@
 open Grimheart_ast
 
-val well_formed_type :
-  Context.t -> Type.t -> (unit, Grimheart_core_errors.t) result
-(** [well_formed_type context _T] determines the well-formedness of some type _T
-    with respect to the context. This function is used to partially verify the
-    correctness of the algorithmic context. *)
-
 val subsumes :
   Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_core_errors.t) result
 (** [subsumes t1 t2] subsumes t1 with t2. *)

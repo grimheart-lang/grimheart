@@ -11,6 +11,8 @@ type t =
   | CouldNotApplyKind of Type.t * Type.t * Type.t
   | InternalKindCheckerError of string
   | IllFormedType of Type.t
+  | EscapedSkolemVariable of Type.t
+  | VariableNotInScope of Type.t
   | UnknownVariable of string
   | FailedToBreakApart
   | RethrownError of t * t

@@ -62,4 +62,16 @@ module Sugar : sig
 
   val an : t -> t -> t
   (** Smart constructor for creating annotations. *)
+
+  val forall : string -> t -> t
+  (** Smart constructor for foralls. *)
+
+  val forall' : string -> t -> t -> t
+  (** Smart constructor for kinded foralls. *)
+
+  val var : string -> t
+  (** Smart constructor for variables. *)
+
+  val uns : string -> t
+  (** Smart constructor for unsolved variables. *)
 end

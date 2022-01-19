@@ -66,4 +66,12 @@ module Sugar = struct
   let k_ap a b = KindApply (a, b)
 
   let an a b = Annotate (a, b)
+
+  let forall a t = Forall (a, None, t)
+
+  let forall' a k t = Forall (a, Some k, t)
+
+  let var a = Variable a
+
+  let uns a = Unsolved a
 end

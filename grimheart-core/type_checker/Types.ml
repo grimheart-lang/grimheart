@@ -9,36 +9,6 @@ let fresh_name : unit -> string =
     incr i;
     "t" ^ string_of_int !i
 
-let rec well_formed_type (context : Context.t) (_T : Type.t) :
-    (unit, Grimheart_core_errors.t) result =
-  match _T with
-  | Constructor _ -> Ok ()
-  | Skolem (v, _) | Variable v ->
-      if Context.mem context (Quantified v)
-      then Ok ()
-      else Error (IllFormedType _T)
-  | Unsolved u -> (
-      let predicate : Context.Element.t -> bool = function
-        | Unsolved u'
-        | KindedUnsolved (u', _)
-        | Solved (u', _)
-        | KindedSolved (u', _, _)
-          when String.equal u u' ->
-            true
-        | _ -> false
-      in
-      match List.find context ~f:predicate with
-      | Some _ -> Ok ()
-      | None -> Error (IllFormedType _T))
-  | Forall (a, k, _A) -> (
-      match k with
-      | Some k -> well_formed_type (KindedQuantified (a, k) :: context) _A
-      | None -> well_formed_type (Quantified a :: context) _A)
-  | Apply (_A, _B) | KindApply (_A, _B) | Annotate (_A, _B) ->
-      let* _ = well_formed_type context _A
-      and* _ = well_formed_type context _B in
-      Ok ()
-
 let scoped (context : Context.t) (element : Context.Element.t)
     (action : Context.t -> (Context.t, Grimheart_core_errors.t) result) :
     (Context.t, Grimheart_core_errors.t) result =
@@ -87,7 +57,7 @@ and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
   | (Skolem (a, _), Skolem (b, _) | Variable a, Variable b)
     when String.equal a b ->
       (* `a` must exist within the context *)
-      let* _ = well_formed_type gamma t1 in
+      let* _ = Context.well_formed_type gamma t1 in
       Ok gamma
   (* we only need these variables to be unsolved *)
   | Unsolved a, Unsolved b
@@ -135,7 +105,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
     Context.break_apart_at_unsolved a gamma
   in
   let insertSolved (t : Type.t) : (Context.t, Grimheart_core_errors.t) result =
-    let* _ = well_formed_type gammaR _B in
+    let* _ = Context.well_formed_type gammaR _B in
     Ok (List.append gammaL (Solved (a, t) :: gammaR))
   in
   match _B with
