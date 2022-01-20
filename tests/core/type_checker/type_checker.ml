@@ -7,6 +7,11 @@ module type TEST_INPUT = sig
 end
 
 module Test_utils (I : TEST_INPUT) = struct
+  module Environment : Environment.S = Environment.Make ()
+
+  module Kinds = Kinds.Make (Environment)
+  module Types = Types.Make (Environment) (Kinds)
+
   let testable_type_error =
     let open Alcotest in
     result

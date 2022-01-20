@@ -1,49 +1,29 @@
-val instantiate :
-     Context.t
-  -> Grimheart_ast.Type.t * Grimheart_ast.Type.t
-  -> Grimheart_ast.Type.t
-  -> (Context.t * Grimheart_ast.Type.t, Grimheart_core_errors.t) result
+open Grimheart_ast
+open Grimheart_core_errors
 
-val check :
-     Context.t
-  -> Grimheart_ast.Type.t
-  -> Grimheart_ast.Type.t
-  -> (Context.t * Grimheart_ast.Type.t, Grimheart_core_errors.t) result
+module type S = sig
+  val instantiate :
+    Context.t -> Type.t * Type.t -> Type.t -> (Context.t * Type.t) result'
 
-val infer :
-     Context.t
-  -> Grimheart_ast.Type.t
-  -> ( Context.t * Grimheart_ast.Type.t * Grimheart_ast.Type.t
-     , Grimheart_core_errors.t )
-     result
+  val check : Context.t -> Type.t -> Type.t -> (Context.t * Type.t) result'
 
-val infer_apply :
-     Context.t
-  -> Grimheart_ast.Type.t * Grimheart_ast.Type.t
-  -> Grimheart_ast.Type.t
-  -> ( Context.t * Grimheart_ast.Type.t * Grimheart_ast.Type.t
-     , Grimheart_core_errors.t )
-     result
+  val infer : Context.t -> Type.t -> (Context.t * Type.t * Type.t) result'
 
-val elaborate :
-     Context.t
-  -> Grimheart_ast.Type.t
-  -> (Grimheart_ast.Type.t, Grimheart_core_errors.t) result
+  val infer_apply :
+       Context.t
+    -> Type.t * Type.t
+    -> Type.t
+    -> (Context.t * Type.t * Type.t) result'
 
-val subsumes :
-     Context.t
-  -> Grimheart_ast.Type.t
-  -> Grimheart_ast.Type.t
-  -> (Context.t, Grimheart_core_errors.t) result
+  val elaborate : Context.t -> Type.t -> Type.t result'
 
-val unify :
-     Context.t
-  -> Grimheart_ast.Type.t
-  -> Grimheart_ast.Type.t
-  -> (Context.t, Grimheart_core_errors.t) result
+  val subsumes : Context.t -> Type.t -> Type.t -> Context.t result'
 
-val promote :
-     Context.t
-  -> string
-  -> Grimheart_ast.Type.t
-  -> (Context.t * Grimheart_ast.Type.t, Grimheart_core_errors.t) result
+  val unify : Context.t -> Type.t -> Type.t -> Context.t result'
+
+  val promote : Context.t -> string -> Type.t -> (Context.t * Type.t) result'
+
+  val unify_unsolved : Context.t -> string -> Type.t -> Context.t result'
+end
+
+module Make : functor (E : Environment.S) -> S
