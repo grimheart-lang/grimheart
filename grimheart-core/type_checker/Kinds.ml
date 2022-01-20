@@ -205,10 +205,11 @@ module Make (E : Environment.S) : S = struct
     | Constructor _ when is_primitive_type_type _T ->
         Ok Type.Sugar.(fn t_type t_type)
     | Constructor "Function" -> Ok Type.Sugar.(fn t_type (fn t_type t_type))
-    | Constructor _ ->
-        raise
-          (Failure
-             "Elaborated kind synthesis failed for arbitrary constructors.")
+    | Constructor n -> (
+        match E.find n with
+        | Some t -> Ok (Context.apply ctx t)
+        (* todo: add a different error. *)
+        | None -> Error (UnknownVariable n))
     (* A-ELA-KUVAR *)
     | Unsolved a ->
         let* _, p, _ = Context.break_apart_at_kinded_unsolved a ctx in
