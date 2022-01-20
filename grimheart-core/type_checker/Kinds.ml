@@ -77,8 +77,11 @@ module Make (E : Environment.S) : S = struct
         Ok (ctx, t, Type.Sugar.fn t_type t_type)
     | Constructor "Function" ->
         Ok (ctx, t, Type.Sugar.(fn t_type (fn t_type t_type)))
-    | Constructor _ ->
-        raise (Failure "Kind synthesis failed for arbitrary constructors.")
+    | Constructor n -> (
+        match E.find n with
+        | Some t -> Ok (ctx, t, Context.apply ctx t)
+        (* todo: add a different error. *)
+        | None -> Error (UnknownVariable n))
     (* A-KTT-VAR *)
     | Variable a -> (
         let f : Context.Element.t -> _ = function
