@@ -15,21 +15,6 @@ let fresh_name : unit -> string =
     incr i;
     "k" ^ string_of_int !i
 
-let scoped (context : Context.t) (element : Context.Element.t)
-    (action : Context.t -> (Context.t, Grimheart_core_errors.t) result) :
-    (Context.t, Grimheart_core_errors.t) result =
-  let* context' = action (element :: context) in
-  Ok (Context.discard_up_to element context')
-
-let scoped_unsolved (context : Context.t) (unsolved : string) (kind : Type.t)
-    (action : Context.t -> ('a, Grimheart_core_errors.t) result) :
-    ('a, Grimheart_core_errors.t) result =
-  let marker = Context.Element.Marker unsolved in
-  let* context' =
-    action (KindedUnsolved (unsolved, kind) :: marker :: context)
-  in
-  Ok (Context.discard_up_to marker context')
-
 let should_instantiate : Type.t -> bool = function
   | Forall _ -> true
   | _ -> false
@@ -254,16 +239,17 @@ and subsumes (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
         | Some k -> Context.Element.KindedQuantified (b', k)
         | None -> Context.Element.Quantified b'
       in
-      scoped ctx m (fun ctx -> subsumes ctx t1 t)
+      Context.scoped ctx m (fun ctx -> subsumes ctx t1 t)
   | Forall (a, k, t), _ -> (
       let a' = fresh_name () in
       let t = Type.substitute a (Unsolved a') t in
       match k with
-      | Some k -> scoped_unsolved ctx a' k (fun ctx -> subsumes ctx t t2)
+      | Some k ->
+          Context.scoped_kinded_unsolved ctx a' k (fun ctx -> subsumes ctx t t2)
       | None ->
           let k' = fresh_name () in
-          scoped_unsolved ctx k' t_type (fun ctx ->
-              scoped_unsolved ctx a' (Unsolved k') (fun ctx ->
+          Context.scoped_kinded_unsolved ctx k' t_type (fun ctx ->
+              Context.scoped_kinded_unsolved ctx a' (Unsolved k') (fun ctx ->
                   subsumes ctx t t2)))
   | _ -> unify ctx t1 t2
 

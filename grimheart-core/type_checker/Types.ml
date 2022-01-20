@@ -9,18 +9,6 @@ let fresh_name : unit -> string =
     incr i;
     "t" ^ string_of_int !i
 
-let scoped (context : Context.t) (element : Context.Element.t)
-    (action : Context.t -> (Context.t, Grimheart_core_errors.t) result) :
-    (Context.t, Grimheart_core_errors.t) result =
-  let* context' = action (element :: context) in
-  Ok (Context.discard_up_to element context')
-
-let scoped_unsolved (context : Context.t) (unsolved : string)
-    (action : Context.t -> ('a, Grimheart_core_errors.t) result) :
-    ('a, Grimheart_core_errors.t) result =
-  scoped context (Marker unsolved) (fun context ->
-      action (Unsolved unsolved :: context))
-
 let insert_in_between ((gammaL, gammaR) : Context.t * Context.t)
     ((a, a', b') : string * string * string) (ctor : Type.t -> Type.t -> Type.t)
     : Context.t =
@@ -41,11 +29,11 @@ let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
   | _, Forall (b, k2, t2) ->
       let b' = fresh_name () in
       let t2 = Type.substitute b (Skolem (b', k2)) t2 in
-      scoped gamma (Quantified b') (fun gamma -> subsumes gamma t1 t2)
+      Context.scoped gamma (Quantified b') (fun gamma -> subsumes gamma t1 t2)
   | Forall (a, _, t1), _ ->
       let a' = fresh_name () in
       let t1 = Type.substitute a (Unsolved a') t1 in
-      scoped_unsolved gamma a' (fun gamma -> subsumes gamma t1 t2)
+      Context.scoped_unsolved gamma a' (fun gamma -> subsumes gamma t1 t2)
   | _ -> unify gamma t1 t2
 
 and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
@@ -67,15 +55,15 @@ and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
       let a' = fresh_name () in
       let t1 = Type.substitute a1 (Skolem (a', k1)) t1 in
       let t2 = Type.substitute a2 (Skolem (a', k2)) t2 in
-      scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
+      Context.scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
   | _, Forall (b, k2, t2) ->
       let b' = fresh_name () in
       let t2 = Type.substitute b (Skolem (b', k2)) t2 in
-      scoped gamma (Quantified b') (fun gamma -> unify gamma t1 t2)
+      Context.scoped gamma (Quantified b') (fun gamma -> unify gamma t1 t2)
   | Forall (a, k1, t1), _ ->
       let a' = fresh_name () in
       let t1 = Type.substitute a (Skolem (a', k1)) t1 in
-      scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
+      Context.scoped gamma (Quantified a') (fun gamma -> unify gamma t1 t2)
   | Unsolved a, _
     when Context.mem gamma (Unsolved a)
          && not (Set.mem (Type.free_type_variables t2) a) ->
@@ -131,7 +119,7 @@ and solve (gamma : Context.t) (a : string) (_B : Type.t) :
       let* theta = solve gamma a' _A in
       solve theta b' (Context.apply theta _B)
   | Forall (b, _, _B) ->
-      scoped gamma (Quantified b) (fun gamma -> solve gamma a _B)
+      Context.scoped gamma (Quantified b) (fun gamma -> solve gamma a _B)
   | Apply (_A, _B) ->
       let a' = fresh_name () in
       let b' = fresh_name () in
@@ -179,13 +167,13 @@ and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
   | Lambda (n, e), Apply (Apply (t_function', _A1), _A2)
     when Type.equal t_function t_function' ->
       let n' = fresh_name () in
-      scoped gamma
+      Context.scoped gamma
         (Variable (n', _A1))
         (fun gamma -> check gamma (Expr.substitute n (Variable n') e) _A2)
   | _, Forall (a, k, _A) ->
       let a' = fresh_name () in
       let _A = Type.substitute a (Skolem (a', k)) _A in
-      scoped gamma (Quantified a') (fun gamma -> check gamma e _A)
+      Context.scoped gamma (Quantified a') (fun gamma -> check gamma e _A)
   | _ ->
       let* theta, _A' = infer gamma e in
       subsumes theta (Context.apply theta _A') (Context.apply theta _A)
@@ -236,7 +224,7 @@ and infer (gamma : Context.t) (e : _ Expr.t) :
       let b' = fresh_name () in
       let* delta =
         let v' = fresh_name () in
-        scoped
+        Context.scoped
           (Unsolved b' :: Unsolved a' :: gamma)
           (Variable (v', Unsolved a'))
           (fun gamma ->
