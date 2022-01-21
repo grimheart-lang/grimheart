@@ -7,7 +7,6 @@ open Grimheart_core_errors.Let
 
 module Element = struct
   type t =
-    | Variable of string * Type.t
     | Quantified of string
     | Unsolved of string
     | Solved of string * Type.t
@@ -144,3 +143,21 @@ let rec well_formed_type (context : t) (t : Type.t) :
       let* _ = well_formed_type context _A
       and* _ = well_formed_type context _B in
       Ok ()
+
+let scoped (context : t) (element : Element.t)
+    (action : t -> (t, Grimheart_core_errors.t) result) :
+    (t, Grimheart_core_errors.t) result =
+  let* context' = action (element :: context) in
+  Ok (discard_up_to element context')
+
+let scoped_unsolved (context : t) (unsolved : string)
+    (action : t -> ('a, Grimheart_core_errors.t) result) :
+    ('a, Grimheart_core_errors.t) result =
+  scoped context (Marker unsolved) (fun context ->
+      action (Unsolved unsolved :: context))
+
+let scoped_kinded_unsolved (context : t) (unsolved : string) (kind : Type.t)
+    (action : t -> ('a, Grimheart_core_errors.t) result) :
+    ('a, Grimheart_core_errors.t) result =
+  scoped context (Marker unsolved) (fun context ->
+      action (KindedUnsolved (unsolved, kind) :: context))

@@ -1,0 +1,4 @@
+(library
+ (name grimheart_core_environment)
+ (public_name grimheart_core.environment)
+ (libraries core_kernel grimheart_ast))

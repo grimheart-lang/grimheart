@@ -18,11 +18,13 @@ type t =
   | RethrownError of t * t
 [@@deriving eq, show]
 
-let rethrow (e : t) : ('a, t) result -> ('a, t) result =
+type 'a result' = ('a, t) Result.t
+
+let rethrow (e : t) : 'a result' -> 'a result' =
   Result.map_error ~f:(fun e' -> RethrownError (e, e'))
 
 module Let = struct
-  let ( let* ) : (_, t) result -> _ = Result.( >>= )
+  let ( let* ) : 'a result' -> _ = Result.( >>= )
 
-  let ( and* ) : (_, t) result -> _ = Result.Let_syntax.Let_syntax.both
+  let ( and* ) : 'a result' -> _ = Result.Let_syntax.Let_syntax.both
 end

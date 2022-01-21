@@ -3,7 +3,6 @@ open Grimheart_ast
 (** The type of context elements. *)
 module Element : sig
   type t =
-    | Variable of string * Type.t
     | Quantified of string
     | Unsolved of string
     | Solved of string * Type.t
@@ -61,3 +60,22 @@ val well_formed_type :
   t -> Grimheart_ast.Type.t -> (unit, Grimheart_core_errors.t) result
 (** [well_formed_type context type_] asserts the well-formedness of the type
     with respect to the current context. *)
+
+val scoped :
+     t
+  -> Element.t
+  -> (t -> (t, Grimheart_core_errors.t) result)
+  -> (t, Grimheart_core_errors.t) result
+
+val scoped_unsolved :
+     t
+  -> string
+  -> (t -> (t, Grimheart_core_errors.t) result)
+  -> (t, Grimheart_core_errors.t) result
+
+val scoped_kinded_unsolved :
+     t
+  -> string
+  -> Grimheart_ast.Type.t
+  -> (t -> (t, Grimheart_core_errors.t) result)
+  -> (t, Grimheart_core_errors.t) result
