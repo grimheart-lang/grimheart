@@ -1,32 +1,53 @@
 open Core_kernel
 open Grimheart_ast
 
-type t = (string, Type.t) Hashtbl.t
+module Member = struct
+  type t = (string, Type.t) Hashtbl.t
+
+  module type S = sig
+    val contents : t
+
+    val find : string -> Type.t option
+
+    val set : string -> Type.t -> unit
+
+    val remove : string -> unit
+
+    val temporarily : string -> Type.t -> (unit -> 'a) -> 'a
+  end
+
+  module Make () : S = struct
+    let contents = Hashtbl.create (module String)
+
+    let find = Hashtbl.find contents
+
+    let set key data = Hashtbl.set contents ~key ~data
+
+    let remove = Hashtbl.remove contents
+
+    let temporarily key data callback =
+      match find key with
+      | Some old_data ->
+          set key data;
+          let result = callback () in
+          set key old_data;
+          result
+      | None ->
+          set key data;
+          let result = callback () in
+          remove key;
+          result
+  end
+end
 
 module type S = sig
-  val environment : t
+  module Terms : Member.S
 
-  val find : string -> Type.t option
-
-  val insert : key:string -> data:Type.t -> unit
-
-  val delete : string -> unit
-
-  val temporarily : key:string -> data:Type.t -> (unit -> 'a) -> 'a
+  module Types : Member.S
 end
 
 module Make () : S = struct
-  let environment = Hashtbl.create (module String)
+  module Terms = Member.Make ()
 
-  let find = Hashtbl.find environment
-
-  let insert = Hashtbl.set environment
-
-  let delete = Hashtbl.remove environment
-
-  let temporarily ~key ~data callback =
-    insert ~key ~data;
-    let result = callback () in
-    delete key;
-    result
+  module Types = Member.Make ()
 end

@@ -41,21 +41,17 @@ module Test_input : TEST_INPUT = struct
     include Environment.Make ()
 
     let () =
-      Hashtbl.add_exn environment ~key:"Escape"
-        ~data:
-          (forall' "a" t_type
-          @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"));
-      Hashtbl.add_exn environment ~key:"Escape'"
-        ~data:
-          (forall' "a" t_type
-          @@ fn (forall' "b" t_type @@ fn (var "b") (var "a")) (var "a"));
-      Hashtbl.add_exn environment ~key:"HigherRank"
-        ~data:(fn (forall "a" @@ fn (var "a") (var "a")) t_type);
-      Hashtbl.add_exn environment ~key:"HigherRank'"
-        ~data:(fn (forall' "a" t_type @@ fn (var "a") (var "a")) t_type);
-      Hashtbl.add_exn environment ~key:"Identity"
-        ~data:(forall' "a" t_type @@ fn (var "a") (var "a"));
-      Hashtbl.add_exn environment ~key:"TypeToType" ~data:(fn t_int t_int)
+      Types.set "Escape"
+        (forall' "a" t_type
+        @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"));
+      Types.set "Escape'"
+        (forall' "a" t_type
+        @@ fn (forall' "b" t_type @@ fn (var "b") (var "a")) (var "a"));
+      Types.set "HigherRank" (fn (forall "a" @@ fn (var "a") (var "a")) t_type);
+      Types.set "HigherRank'"
+        (fn (forall' "a" t_type @@ fn (var "a") (var "a")) t_type);
+      Types.set "Identity" (forall' "a" t_type @@ fn (var "a") (var "a"));
+      Types.set "TypeToType" (fn t_int t_int)
   end
 end
 

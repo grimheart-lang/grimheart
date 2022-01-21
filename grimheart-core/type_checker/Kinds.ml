@@ -39,7 +39,7 @@ module type S = sig
   val unify_unsolved : Context.t -> string -> Type.t -> Context.t result'
 end
 
-module Make (E : Environment.S) : S = struct
+module Make (Env : Environment.S) : S = struct
   let fresh_name : unit -> string =
     let i = ref (-1) in
     fun () ->
@@ -78,7 +78,7 @@ module Make (E : Environment.S) : S = struct
     | Constructor "Function" ->
         Ok (ctx, t, Type.Sugar.(fn t_type (fn t_type t_type)))
     | Constructor n -> (
-        match E.find n with
+        match Env.Types.find n with
         | Some t -> Ok (ctx, t, Context.apply ctx t)
         (* todo: add a different error. *)
         | None -> Error (UnknownVariable n))
@@ -206,7 +206,7 @@ module Make (E : Environment.S) : S = struct
         Ok Type.Sugar.(fn t_type t_type)
     | Constructor "Function" -> Ok Type.Sugar.(fn t_type (fn t_type t_type))
     | Constructor n -> (
-        match E.find n with
+        match Env.Types.find n with
         | Some t -> Ok (Context.apply ctx t)
         (* todo: add a different error. *)
         | None -> Error (UnknownVariable n))

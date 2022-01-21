@@ -74,9 +74,9 @@ module Test_input : TEST_INPUT = struct
     include Environment.Make ()
 
     let () =
-      insert ~key:"identity" ~data:(forall "a" @@ fn (var "a") (var "a"));
-      insert ~key:"escape"
-        ~data:(forall "a" @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"))
+      Terms.set "identity" (forall "a" @@ fn (var "a") (var "a"));
+      Terms.set "escape"
+        (forall "a" @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"))
   end
 end
 
