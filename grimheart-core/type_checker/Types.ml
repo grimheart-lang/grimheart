@@ -197,12 +197,11 @@ module Make (Env : Environment.S) (Kinds : Kinds.S) : S = struct
     | Literal (Object _), _ ->
         raise
           (Failure "todo: checking routine for object is not yet implemented")
-    | Lambda (n, e), Apply (Apply (t_function', _A1), _A2)
+    | Lambda (n, e), Apply (Apply (t_function', ar), re)
       when Type.equal t_function t_function' ->
         let n' = fresh_name () in
-        Context.scoped gamma
-          (Variable (n', _A1))
-          (fun gamma -> check gamma (Expr.substitute n (Variable n') e) _A2)
+        Env.temporarily ~key:n' ~data:ar (fun () ->
+            check gamma (Expr.substitute n (Variable n') e) re)
     | _, Forall (a, k, _A) ->
         let a' = fresh_name () in
         let _A = Type.substitute a (Skolem (a', k)) _A in
@@ -243,11 +242,7 @@ module Make (Env : Environment.S) (Kinds : Kinds.S) : S = struct
         raise
           (Failure "todo: inference routine for object is not yet implemented")
     | Variable v -> (
-        let find_variable : Context.Element.t -> Type.t option = function
-          | Variable (v', t) when String.equal v v' -> Some t
-          | _ -> None
-        in
-        match List.find_map gamma ~f:find_variable with
+        match Env.find v with
         | Some t -> Ok (gamma, t)
         | None -> Error (UnknownVariable v))
     | Lambda (v, e) ->
@@ -255,11 +250,10 @@ module Make (Env : Environment.S) (Kinds : Kinds.S) : S = struct
         let b' = fresh_name () in
         let* delta =
           let v' = fresh_name () in
-          Context.scoped
-            (Unsolved b' :: Unsolved a' :: gamma)
-            (Variable (v', Unsolved a'))
-            (fun gamma ->
-              check gamma (Expr.substitute v (Variable v') e) (Unsolved b'))
+          Env.temporarily ~key:v' ~data:(Unsolved a') (fun () ->
+              Context.scoped (Unsolved b' :: Unsolved a' :: gamma) (Marker v')
+                (fun gamma ->
+                  check gamma (Expr.substitute v (Variable v') e) (Unsolved b')))
         in
         Ok (delta, Type.Sugar.fn (Unsolved a') (Unsolved b'))
     | Apply (f, x) ->
@@ -277,7 +271,8 @@ module Make (Env : Environment.S) (Kinds : Kinds.S) : S = struct
           | None -> infer gamma e1
         in
         let v' = fresh_name () in
-        infer (Variable (v', t) :: gamma) (Expr.substitute v (Variable v') e2)
+        Env.temporarily ~key:v' ~data:t (fun () ->
+            infer gamma (Expr.substitute v (Variable v') e2))
 
   and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
       (Context.t * Type.t) result' =

@@ -7,7 +7,6 @@ open Grimheart_core_errors.Let
 
 module Element = struct
   type t =
-    | Variable of string * Type.t
     | Quantified of string
     | Unsolved of string
     | Solved of string * Type.t

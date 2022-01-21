@@ -3,7 +3,6 @@ open Grimheart_ast
 (** The type of context elements. *)
 module Element : sig
   type t =
-    | Variable of string * Type.t
     | Quantified of string
     | Unsolved of string
     | Solved of string * Type.t

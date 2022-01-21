@@ -4,13 +4,13 @@ open Grimheart_core_type_checker
 
 module type TEST_INPUT = sig
   val context : Context.t
+
+  module Environment : Environment.S
 end
 
 module Test_utils (I : TEST_INPUT) = struct
-  module Environment : Environment.S = Environment.Make ()
-
-  module Kinds = Kinds.Make (Environment)
-  module Types = Types.Make (Environment) (Kinds)
+  module Kinds = Kinds.Make (I.Environment)
+  module Types = Types.Make (I.Environment) (Kinds)
 
   let testable_type_error =
     let open Alcotest in
@@ -68,15 +68,16 @@ end
 module Test_input : TEST_INPUT = struct
   open Type.Sugar
 
-  let context : Context.t =
-    [
-      Unsolved "A"
-    ; Unsolved "B"
-    ; Variable ("identity", forall "a" @@ fn (var "a") (var "a"))
-    ; Variable
-        ( "escape"
-        , forall "a" @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a") )
-    ]
+  let context : Context.t = [Unsolved "A"; Unsolved "B"]
+
+  module Environment = struct
+    include Environment.Make ()
+
+    let () =
+      insert ~key:"identity" ~data:(forall "a" @@ fn (var "a") (var "a"));
+      insert ~key:"escape"
+        ~data:(forall "a" @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"))
+  end
 end
 
 let run () =
