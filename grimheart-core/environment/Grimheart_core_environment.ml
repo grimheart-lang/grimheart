@@ -59,13 +59,3 @@ module Make () = struct
     type value = Type.t
   end)
 end
-
-(* let () = *)
-(*   let open Make () in *)
-(*   let open Type.Sugar in *)
-(*   print_endline @@ [%derive.show: Type.t option] (Types.find "id"); *)
-(*   Types.Mutable.bracketed (fun () -> *)
-(*       let open Types.Mutable in *)
-(*       set "id" (forall "a" @@ fn (var "id") (var "id")); *)
-(*       print_endline @@ [%derive.show: Type.t option] (Types.find "id")); *)
-(*   print_endline @@ [%derive.show: Type.t option] (Types.find "id") *)
