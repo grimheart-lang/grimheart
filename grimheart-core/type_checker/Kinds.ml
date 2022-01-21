@@ -39,7 +39,7 @@ module type S = sig
   val unify_unsolved : Context.t -> string -> Type.t -> Context.t result'
 end
 
-module Make (Env : Environment.S) : S = struct
+module Make (Env : Grimheart_core_environment.S) : S = struct
   let fresh_name : unit -> string =
     let i = ref (-1) in
     fun () ->

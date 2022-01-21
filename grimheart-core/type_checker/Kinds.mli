@@ -43,4 +43,4 @@ module type S = sig
       t. *)
 end
 
-module Make : functor (E : Environment.S) -> S
+module Make : functor (E : Grimheart_core_environment.S) -> S

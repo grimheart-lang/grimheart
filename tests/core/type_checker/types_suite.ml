@@ -5,7 +5,7 @@ open Grimheart_core_type_checker
 module type TEST_INPUT = sig
   val context : Context.t
 
-  module Environment : Environment.S
+  module Environment : Grimheart_core_environment.S
 end
 
 module Test_utils (I : TEST_INPUT) = struct
@@ -71,11 +71,12 @@ module Test_input : TEST_INPUT = struct
   let context : Context.t = [Unsolved "A"; Unsolved "B"]
 
   module Environment = struct
-    include Environment.Make ()
+    include Grimheart_core_environment.Make ()
 
     let () =
-      Terms.set "identity" (forall "a" @@ fn (var "a") (var "a"));
-      Terms.set "escape"
+      let open Names.Mutable in
+      set "identity" (forall "a" @@ fn (var "a") (var "a"));
+      set "escape"
         (forall "a" @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"))
   end
 end

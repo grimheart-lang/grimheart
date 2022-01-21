@@ -43,4 +43,4 @@ module type S = sig
   (** [infer_type e] infers the type of the expression e with an empty context. *)
 end
 
-module Make : functor (E : Environment.S) (K : Kinds.S) -> S
+module Make : functor (E : Grimheart_core_environment.S) (K : Kinds.S) -> S

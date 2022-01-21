@@ -5,7 +5,7 @@ open Grimheart_core_type_checker
 module type TEST_INPUT = sig
   val context : Context.t
 
-  module Environment : Environment.S
+  module Environment : Grimheart_core_environment.S
 end
 
 module Test_utils (I : TEST_INPUT) = struct
@@ -38,20 +38,21 @@ module Test_input : TEST_INPUT = struct
   let context : Context.t = [Unsolved "A"; Unsolved "B"]
 
   module Environment = struct
-    include Environment.Make ()
+    include Grimheart_core_environment.Make ()
 
     let () =
-      Types.set "Escape"
+      let open Types.Mutable in
+      set "Escape"
         (forall' "a" t_type
         @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"));
-      Types.set "Escape'"
+      set "Escape'"
         (forall' "a" t_type
         @@ fn (forall' "b" t_type @@ fn (var "b") (var "a")) (var "a"));
-      Types.set "HigherRank" (fn (forall "a" @@ fn (var "a") (var "a")) t_type);
-      Types.set "HigherRank'"
+      set "HigherRank" (fn (forall "a" @@ fn (var "a") (var "a")) t_type);
+      set "HigherRank'"
         (fn (forall' "a" t_type @@ fn (var "a") (var "a")) t_type);
-      Types.set "Identity" (forall' "a" t_type @@ fn (var "a") (var "a"));
-      Types.set "TypeToType" (fn t_int t_int)
+      set "Identity" (forall' "a" t_type @@ fn (var "a") (var "a"));
+      set "TypeToType" (fn t_int t_int)
   end
 end
 
