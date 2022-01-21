@@ -178,4 +178,56 @@ let run () =
           infer_type_check_fail_case "skolem escapes are caught"
             (Apply (Variable "escape", Variable "identity"))
         ] )
+    ; ( "infer-polymorphic-lambda"
+      , [
+          infer_type_check_test_case "lambdas are generalized"
+            (forall "a" @@ fn (var "a") (var "a"))
+            (Lambda ("a", Variable "a"))
+        ; infer_type_check_test_case "lambda application is inferred" t_int
+            (Apply (Lambda ("a", Variable "a"), Literal (Int 0)))
+        ; infer_type_check_fail_case "infinite types are caught"
+            (Lambda ("a", Apply (Variable "a", Variable "a")))
+        ] )
+    ; ( "infer-annotation"
+      , [
+          infer_type_check_test_case "annotations are checked" t_int
+            (Annotate (Literal (Int 0), t_int))
+        ; infer_type_check_fail_case "annotations are checked"
+            (Annotate (Literal (Int 0), t_float))
+        ] )
+    ; ( "infer-let"
+      , [
+          infer_type_check_test_case "let bounds variable" t_string
+            (Let ("a", None, Literal (String "a"), Variable "a"))
+        ; infer_type_check_test_case "let type annotations are checked" t_string
+            (Let ("a", Some t_string, Literal (String "a"), Variable "a"))
+        ; infer_type_check_fail_case "let inference does not generalize"
+            (Let
+               ( "id'"
+               , None
+               , Lambda ("a", Variable "a")
+               , Let
+                   ( "_1"
+                   , None
+                   , Apply (Variable "id'", Literal (Int 0))
+                   , Let
+                       ( "_2"
+                       , None
+                       , Apply (Variable "id'", Literal (Float 0.))
+                       , Literal (Char '0') ) ) ))
+        ; infer_type_check_test_case "let inference with annotation" t_char
+            (Let
+               ( "id'"
+               , Some (forall "a" @@ fn (var "a") (var "a"))
+               , Lambda ("a", Variable "a")
+               , Let
+                   ( "_1"
+                   , None
+                   , Apply (Variable "id'", Literal (Int 0))
+                   , Let
+                       ( "_2"
+                       , None
+                       , Apply (Variable "id'", Literal (Float 0.))
+                       , Literal (Char '0') ) ) ))
+        ] )
     ]
