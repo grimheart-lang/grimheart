@@ -56,6 +56,8 @@ module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
 
   let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
       Context.t result' =
+    with_hint (SubsumingTypes (t1, t2))
+    @@
     match (t1, t2) with
     | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
       when Type.equal t_function t_function1
@@ -74,6 +76,8 @@ module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
 
   and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) : Context.t result'
       =
+    with_hint (UnifyingTypes (t1, t2))
+    @@
     match (t1, t2) with
     | Constructor a, Constructor b when String.equal a b ->
         (* todo: perform environment checks here? *)
@@ -120,7 +124,7 @@ module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
     | Annotate (_T, _K), _U ->
         let* gamma, _ = Kinds.check gamma _U _K in
         unify gamma _T _U
-    | _ -> Error (FailedUnification (t1, t2))
+    | _ -> Error (with_message (CouldNotUnifyTypes (t1, t2)))
 
   and solve (gamma : Context.t) (a : string) (_B : Type.t) : Context.t result' =
     let* (gammaL, gammaR) : Context.t * Context.t =
@@ -181,6 +185,8 @@ module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
 
   and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) : Context.t result'
       =
+    with_hint (CheckingType (e, _A))
+    @@
     match (e, _A) with
     | Literal (Char _), Constructor "Char"
     | Literal (String _), Constructor "String"
@@ -213,6 +219,8 @@ module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
         subsumes theta (Context.apply theta _A') (Context.apply theta _A)
 
   and infer (gamma : Context.t) (e : _ Expr.t) : (Context.t * Type.t) result' =
+    with_hint (InferringType e)
+    @@
     match e with
     | Literal (Char _) -> Ok (gamma, t_char)
     | Literal (String _) -> Ok (gamma, t_string)
@@ -246,7 +254,7 @@ module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
     | Variable v -> (
         match Names.find v with
         | Some t -> Ok (gamma, t)
-        | None -> Error (UnknownVariable v))
+        | None -> Error (with_message (UnknownVariable v)))
     | Lambda (v, e) ->
         let a' = fresh_name () in
         let b' = fresh_name () in
@@ -298,7 +306,7 @@ module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
       ->
         let* delta = check gamma e _A in
         Ok (delta, _B)
-    | _ -> Error (FailedInfererence (e, _A))
+    | _ -> Error (with_message (CouldNotApplyTypeOn (_A, e)))
 
   let infer_type_with (context : Context.t) (e : _ Expr.t) : Type.t result' =
     let* delta, poly_type = infer context e in

@@ -62,7 +62,8 @@ let discard_up_to (element : Element.t) (context : t) : t =
 let break_apart_at (element : Element.t) (context : t) :
     (t * t, Grimheart_core_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
-    | [] -> Error FailedToBreakApart
+    | [] ->
+        Error (with_message (InternalError "Could not break context apart."))
     | current :: rest ->
         if Element.equal element current
         then Ok (List.rev collected, rest)
@@ -73,7 +74,8 @@ let break_apart_at (element : Element.t) (context : t) :
 let break_apart_at_unsolved (a : string) (context : t) :
     (t * t, Grimheart_core_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
-    | [] -> Error FailedToBreakApart
+    | [] ->
+        Error (with_message (InternalError "Could not break context apart."))
     | Unsolved a' :: rest when String.equal a a' -> Ok (List.rev collected, rest)
     | current :: rest -> aux (current :: collected) rest
   in
@@ -82,7 +84,8 @@ let break_apart_at_unsolved (a : string) (context : t) :
 let break_apart_at_kinded_unsolved (a : string) (context : t) :
     (t * Type.t * t, Grimheart_core_errors.t) result =
   let rec aux (collected : t) : t -> (t * Type.t * t, _) result = function
-    | [] -> Error FailedToBreakApart
+    | [] ->
+        Error (with_message (InternalError "Could not break context apart."))
     | KindedUnsolved (a', k) :: rest when String.equal a a' ->
         Ok (List.rev collected, k, rest)
     | current :: rest -> aux (current :: collected) rest
@@ -112,7 +115,7 @@ let rec well_formed_type (context : t) (t : Type.t) :
       in
       if Option.is_some @@ List.find ~f context
       then Ok ()
-      else Error (EscapedSkolemVariable t)
+      else Error (with_message (EscapedSkolemVariable t))
   | Variable v ->
       let f : Element.t -> bool = function
         | Quantified v' when String.equal v v' -> true
@@ -121,7 +124,7 @@ let rec well_formed_type (context : t) (t : Type.t) :
       in
       if Option.is_some @@ List.find ~f context
       then Ok ()
-      else Error (VariableNotInScope t)
+      else Error (with_message (TypeVariableNotInScope t))
   | Unsolved u ->
       let f : Element.t -> bool = function
         | Unsolved u'
@@ -134,7 +137,7 @@ let rec well_formed_type (context : t) (t : Type.t) :
       in
       if Option.is_some @@ List.find ~f context
       then Ok ()
-      else Error (VariableNotInScope t)
+      else Error (with_message (TypeVariableNotInScope t))
   | Forall (a, k, _A) -> (
       match k with
       | Some k -> well_formed_type (KindedQuantified (a, k) :: context) _A

@@ -81,7 +81,7 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
         match Env.Types.find n with
         | Some t -> Ok (ctx, t, Context.apply ctx t)
         (* todo: add a different error. *)
-        | None -> Error (UnknownVariable n))
+        | None -> Error (with_message (UnknownVariable n)))
     (* A-KTT-VAR *)
     | Variable a -> (
         let f : Context.Element.t -> _ = function
@@ -91,14 +91,15 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
         in
         match List.find_map ctx ~f with
         | Some k -> Ok (ctx, t, Context.apply ctx k)
-        | None -> Error (Grimheart_core_errors.UnknownVariable a))
+        | None -> Error (with_message (UnknownVariable a)))
     (* A-KTT-SKOLEM *)
     | Skolem (_, k) -> (
         match k with
         | Some k -> Ok (ctx, t, Context.apply ctx k)
         | None ->
             Error
-              (InternalKindCheckerError "infer: skolem variable has no kind."))
+              (with_message
+                 (InternalError "infer: skolem variable has no kind.")))
     (* A-KTT-KUVAR *)
     | Unsolved u ->
         let* _, k, _ = Context.break_apart_at_kinded_unsolved u ctx in
@@ -149,7 +150,7 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
                  forall with a kind annotation."
                 (Type.show t1)
             in
-            Error (InternalKindCheckerError message))
+            Error (with_message (InternalError message)))
     (* A-KTT-ANNOTATE *)
     | Annotate (t1, t2) ->
         let* ctx, t2, _ = infer ctx t2 in
@@ -190,7 +191,7 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
       when Type.equal t_function t_function' ->
         let* ctx, t = check ctx ar arKind in
         Ok (ctx, Type.Apply (fn, t), Context.apply ctx rtKind)
-    | _ -> Error (CouldNotApplyKind (fn, fnKind, ar))
+    | _ -> Error (with_message (CouldNotApplyKindOn (fn, fnKind, ar)))
 
   and elaborate (ctx : Context.t) (_T : Type.t) : Type.t result' =
     let open Type.Primitives in
@@ -199,7 +200,8 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
         match k with
         | Some k -> Ok (Context.apply ctx k)
         | None ->
-            Error (InternalKindCheckerError "elaborate: skolem has no kind."))
+            Error
+              (with_message (InternalError "elaborate: skolem has no kind.")))
     (* A-ELA-TCON *)
     | Constructor _ when is_primitive_type _T -> Ok t_type
     | Constructor _ when is_primitive_type_type _T ->
@@ -208,8 +210,7 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
     | Constructor n -> (
         match Env.Types.find n with
         | Some t -> Ok (Context.apply ctx t)
-        (* todo: add a different error. *)
-        | None -> Error (UnknownVariable n))
+        | None -> Error (with_message (UnknownConstructor n)))
     (* A-ELA-KUVAR *)
     | Unsolved a ->
         let* _, p, _ = Context.break_apart_at_kinded_unsolved a ctx in
@@ -223,7 +224,10 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
         in
         match List.find_map ctx ~f with
         | Some k -> Ok (Context.apply ctx k)
-        | None -> Error (Grimheart_core_errors.UnknownVariable a))
+        | None ->
+            Error
+              (with_message
+                 (InternalError "elaborate: type variable has no kind.")))
     (* A-ELA-APP *)
     | Apply (p1, _) -> (
         let* w1_w2 = elaborate ctx p1 in
@@ -238,7 +242,7 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
                  instead."
                 (Type.show p1) (Type.show w1_w2)
             in
-            Error (InternalKindCheckerError message))
+            Error (with_message (InternalError message)))
     (* A-ELA-KAPP *)
     | KindApply (p1, p2) -> (
         let* w1 = elaborate ctx p1 in
@@ -251,7 +255,7 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
                  instead."
                 (Type.show p1) (Type.show w1)
             in
-            Error (InternalKindCheckerError message))
+            Error (with_message (InternalError message)))
     (* A-ELA-FORALL *)
     | Forall _ -> Ok t_type
     (* A-ELA-ANNOTATE *)
@@ -306,7 +310,7 @@ module Make (Env : Grimheart_core_environment.S) : S = struct
     (* A-U-KVARR-TT *)
     | p1, Unsolved a -> unify_unsolved ctx a p1
     (* FALLTHROUGH *)
-    | _A, _B -> Error (CouldNotUnifyKinds (_A, _B))
+    | _A, _B -> Error (with_message (CouldNotUnifyKinds (_A, _B)))
 
   and promote (ctx : Context.t) (a : string) (t : Type.t) :
       (Context.t * Type.t) result' =
