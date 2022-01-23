@@ -75,3 +75,7 @@ module Sugar : sig
   val uns : string -> t
   (** Smart constructor for unsolved variables. *)
 end
+
+module Pretty : sig
+  val pretty_print : t -> string
+end

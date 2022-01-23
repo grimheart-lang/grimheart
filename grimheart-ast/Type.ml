@@ -75,3 +75,42 @@ module Sugar = struct
 
   let uns a = Unsolved a
 end
+
+module Pretty = struct
+  let pretty_print (t : t) : string =
+    let rec aux : t -> string = function
+      | Constructor n -> n
+      | Variable v -> v
+      | Skolem (s, k) -> (
+          match k with
+          | Some k -> Format.sprintf "(%s^ : %s)" s (aux k)
+          | None -> s ^ "^")
+      | Unsolved u -> u ^ "?"
+      | Forall (a, k, t) ->
+          let v =
+            match k with
+            | Some k -> Format.sprintf "(%s : %s)" a (aux k)
+            | None -> a
+          in
+          Format.sprintf "∀%s. %s" v (aux t)
+      | Apply (Apply (t_function', a), b)
+        when equal Primitives.t_function t_function' ->
+          let a =
+            match a with
+            | Forall _ -> Format.sprintf "(%s)" (aux a)
+            | _ -> aux a
+          in
+          Format.sprintf "%s → %s" a (aux b)
+      | Apply (a, b) -> Format.sprintf "%s %s" (parenthesize a) (parenthesize b)
+      | KindApply (a, b) ->
+          Format.sprintf "%s @%s" (parenthesize a) (parenthesize b)
+      | Annotate (a, b) ->
+          Format.sprintf "%s : %s" (parenthesize a) (parenthesize b)
+    and parenthesize (a : t) : string =
+      match a with
+      | Annotate _ | KindApply _ | Apply _ | Forall _ ->
+          Format.sprintf "(%s)" (aux a)
+      | _ -> aux a
+    in
+    aux t
+end
