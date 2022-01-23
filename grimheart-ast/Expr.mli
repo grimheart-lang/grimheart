@@ -16,3 +16,7 @@ val show : (Format.formatter -> 'a -> unit) -> 'a t -> string
 val substitute : string -> 'a t -> 'a t -> 'a t
 (** [substitute a r e] takes all occurences of the variable a inside of an
     expression e and replaces them with an expression r. *)
+
+module Pretty : sig
+  val pretty_print : unit t -> string
+end
