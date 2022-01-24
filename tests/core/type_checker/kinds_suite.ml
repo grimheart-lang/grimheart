@@ -41,7 +41,7 @@ module Test_input : TEST_INPUT = struct
     include Grimheart_core_environment.Make ()
 
     let () =
-      let open Types.Mutable in
+      let open Types in
       set "Escape"
         (forall' "a" t_type
         @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"));

@@ -1,61 +1,13 @@
 open Core_kernel
 open Grimheart_ast
 
-module Map = struct
-  module type S = sig
-    type value
-
-    type t = value Map.M(String).t
-
-    val contents : t ref
-
-    val find : string -> value option
-
-    module Mutable : sig
-      val bracketed : (unit -> 'a) -> 'a
-
-      val set : string -> value -> unit
-    end
-  end
-
-  module type I = sig
-    type value
-  end
-
-  module Make (M : I) : S with type value = M.value = struct
-    type value = M.value
-
-    type t = value Map.M(String).t
-
-    let contents : t ref = ref (Map.empty (module String))
-
-    let find (key : string) : value option = Map.find !contents key
-
-    module Mutable = struct
-      let bracketed (action : unit -> 'a) : 'a =
-        let pre_contents = !contents in
-        let result = action () in
-        contents := pre_contents;
-        result
-
-      let set (key : string) (data : value) : unit =
-        contents := Map.set ~key ~data !contents
-    end
-  end
-end
-
 module type S = sig
-  module Names : Map.S with type value = Type.t
+  module Names : Grimheart_utils.Map.S_Make(String)(Type).S
 
-  module Types : Map.S with type value = Type.t
+  module Types : Grimheart_utils.Map.S_Make(String)(Type).S
 end
 
-module Make () = struct
-  module Names = Map.Make (struct
-    type value = Type.t
-  end)
-
-  module Types = Map.Make (struct
-    type value = Type.t
-  end)
+module Make () : S = struct
+  module Names = Grimheart_utils.Map.Make (String) (Type)
+  module Types = Grimheart_utils.Map.Make (String) (Type)
 end

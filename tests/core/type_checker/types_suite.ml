@@ -74,7 +74,7 @@ module Test_input : TEST_INPUT = struct
     include Grimheart_core_environment.Make ()
 
     let () =
-      let open Names.Mutable in
+      let open Names in
       set "identity" (forall "a" @@ fn (var "a") (var "a"));
       set "escape"
         (forall "a" @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"))

@@ -1,0 +1,4 @@
+(library
+ (name grimheart_utils)
+ (public_name grimheart_core.utils)
+ (libraries core_kernel))
