@@ -1,7 +1,7 @@
 open Core_kernel
 open Grimheart_ast
-open Grimheart_core_errors
-open Grimheart_core_errors.Let
+open Grimheart_errors
+open Grimheart_errors.Let
 
 let fresh_name : unit -> string =
   let i = ref (-1) in
@@ -19,38 +19,33 @@ let insert_in_between ((gammaL, gammaR) : Context.t * Context.t)
 
 module type S = sig
   val subsumes :
-    Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_core_errors.t) result
+    Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_errors.t) result
 
   val unify :
-    Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_core_errors.t) result
+    Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_errors.t) result
 
   val solve :
-    Context.t -> string -> Type.t -> (Context.t, Grimheart_core_errors.t) result
+    Context.t -> string -> Type.t -> (Context.t, Grimheart_errors.t) result
 
   val check :
-       Context.t
-    -> unit Expr.t
-    -> Type.t
-    -> (Context.t, Grimheart_core_errors.t) result
+    Context.t -> unit Expr.t -> Type.t -> (Context.t, Grimheart_errors.t) result
 
   val infer :
-       Context.t
-    -> unit Expr.t
-    -> (Context.t * Type.t, Grimheart_core_errors.t) result
+    Context.t -> unit Expr.t -> (Context.t * Type.t, Grimheart_errors.t) result
 
   val infer_apply :
        Context.t
     -> Type.t
     -> unit Expr.t
-    -> (Context.t * Type.t, Grimheart_core_errors.t) result
+    -> (Context.t * Type.t, Grimheart_errors.t) result
 
   val infer_type_with :
-    Context.t -> unit Expr.t -> (Type.t, Grimheart_core_errors.t) result
+    Context.t -> unit Expr.t -> (Type.t, Grimheart_errors.t) result
 
-  val infer_type : unit Expr.t -> (Type.t, Grimheart_core_errors.t) result
+  val infer_type : unit Expr.t -> (Type.t, Grimheart_errors.t) result
 end
 
-module Make (Env : Grimheart_core_environment.S) (Kinds : Kinds.S) : S = struct
+module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
   open Env
   open Type.Primitives
 

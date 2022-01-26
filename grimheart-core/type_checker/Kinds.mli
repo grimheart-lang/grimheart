@@ -1,5 +1,5 @@
 open Grimheart_ast
-open Grimheart_core_errors
+open Grimheart_errors
 
 module type S = sig
   val instantiate :
@@ -43,4 +43,4 @@ module type S = sig
       t. *)
 end
 
-module Make : functor (E : Grimheart_core_environment.S) -> S
+module Make : functor (E : Grimheart_environment.S) -> S

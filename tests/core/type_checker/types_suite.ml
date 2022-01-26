@@ -1,11 +1,11 @@
 open Core_kernel
 open Grimheart_ast
-open Grimheart_core_type_checker
+open Grimheart_type_checker
 
 module type TEST_INPUT = sig
   val context : Context.t
 
-  module Environment : Grimheart_core_environment.S
+  module Environment : Grimheart_environment.S
 end
 
 module Test_utils (I : TEST_INPUT) = struct
@@ -16,13 +16,13 @@ module Test_utils (I : TEST_INPUT) = struct
     let open Alcotest in
     result
       (testable Type.pp Type.equal)
-      (testable Grimheart_core_errors.pp Grimheart_core_errors.equal)
+      (testable Grimheart_errors.pp Grimheart_errors.equal)
 
   let testable_context_error =
     let open Alcotest in
     result
       (testable Context.pp Context.equal)
-      (testable Grimheart_core_errors.pp Grimheart_core_errors.equal)
+      (testable Grimheart_errors.pp Grimheart_errors.equal)
 
   let infer_type_check_test_case annotation expected value =
     let check () =
@@ -71,7 +71,7 @@ module Test_input : TEST_INPUT = struct
   let context : Context.t = [Unsolved "A"; Unsolved "B"]
 
   module Environment = struct
-    include Grimheart_core_environment.Make ()
+    include Grimheart_environment.Make ()
 
     let () =
       let open Names.Mutable in

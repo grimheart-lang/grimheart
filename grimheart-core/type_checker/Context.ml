@@ -2,8 +2,8 @@
 open Core_kernel
 
 open Grimheart_ast
-open Grimheart_core_errors
-open Grimheart_core_errors.Let
+open Grimheart_errors
+open Grimheart_errors.Let
 
 module Element = struct
   type t =
@@ -60,7 +60,7 @@ let discard_up_to (element : Element.t) (context : t) : t =
   aux context
 
 let break_apart_at (element : Element.t) (context : t) :
-    (t * t, Grimheart_core_errors.t) result =
+    (t * t, Grimheart_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
     | [] ->
         Error (with_message (InternalError "Could not break context apart."))
@@ -72,7 +72,7 @@ let break_apart_at (element : Element.t) (context : t) :
   aux [] context
 
 let break_apart_at_unsolved (a : string) (context : t) :
-    (t * t, Grimheart_core_errors.t) result =
+    (t * t, Grimheart_errors.t) result =
   let rec aux (collected : t) : t -> (t * t, _) result = function
     | [] ->
         Error (with_message (InternalError "Could not break context apart."))
@@ -82,7 +82,7 @@ let break_apart_at_unsolved (a : string) (context : t) :
   aux [] context
 
 let break_apart_at_kinded_unsolved (a : string) (context : t) :
-    (t * Type.t * t, Grimheart_core_errors.t) result =
+    (t * Type.t * t, Grimheart_errors.t) result =
   let rec aux (collected : t) : t -> (t * Type.t * t, _) result = function
     | [] ->
         Error (with_message (InternalError "Could not break context apart."))
@@ -100,7 +100,7 @@ let unsolved : t -> t =
   List.filter ~f
 
 let rec well_formed_type (context : t) (t : Type.t) :
-    (unit, Grimheart_core_errors.t) result =
+    (unit, Grimheart_errors.t) result =
   match t with
   | Constructor _ -> Ok ()
   | Skolem (v, k) ->
@@ -148,19 +148,19 @@ let rec well_formed_type (context : t) (t : Type.t) :
       Ok ()
 
 let scoped (context : t) (element : Element.t)
-    (action : t -> (t, Grimheart_core_errors.t) result) :
-    (t, Grimheart_core_errors.t) result =
+    (action : t -> (t, Grimheart_errors.t) result) :
+    (t, Grimheart_errors.t) result =
   let* context' = action (element :: context) in
   Ok (discard_up_to element context')
 
 let scoped_unsolved (context : t) (unsolved : string)
-    (action : t -> ('a, Grimheart_core_errors.t) result) :
-    ('a, Grimheart_core_errors.t) result =
+    (action : t -> ('a, Grimheart_errors.t) result) :
+    ('a, Grimheart_errors.t) result =
   scoped context (Marker unsolved) (fun context ->
       action (Unsolved unsolved :: context))
 
 let scoped_kinded_unsolved (context : t) (unsolved : string) (kind : Type.t)
-    (action : t -> ('a, Grimheart_core_errors.t) result) :
-    ('a, Grimheart_core_errors.t) result =
+    (action : t -> ('a, Grimheart_errors.t) result) :
+    ('a, Grimheart_errors.t) result =
   scoped context (Marker unsolved) (fun context ->
       action (KindedUnsolved (unsolved, kind) :: context))

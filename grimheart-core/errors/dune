@@ -1,5 +1,5 @@
 (library
- (name grimheart_core_errors)
+ (name grimheart_errors)
  (public_name grimheart_core.errors)
  (libraries core_kernel grimheart_ast)
  (instrumentation

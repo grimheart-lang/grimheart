@@ -1,5 +1,5 @@
 (library
- (name grimheart_core_type_checker)
+ (name grimheart_type_checker)
  (public_name grimheart_core.type_checker)
  (libraries
   core_kernel

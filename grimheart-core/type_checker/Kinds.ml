@@ -7,8 +7,8 @@
    https://arxiv.org/pdf/1911.06153.pdf *)
 open Core_kernel
 open Grimheart_ast
-open Grimheart_core_errors
-open Grimheart_core_errors.Let
+open Grimheart_errors
+open Grimheart_errors.Let
 
 let should_instantiate : Type.t -> bool = function
   | Forall _ -> true
@@ -39,7 +39,7 @@ module type S = sig
   val unify_unsolved : Context.t -> string -> Type.t -> Context.t result'
 end
 
-module Make (Env : Grimheart_core_environment.S) : S = struct
+module Make (Env : Grimheart_environment.S) : S = struct
   let fresh_name : unit -> string =
     let i = ref (-1) in
     fun () ->
