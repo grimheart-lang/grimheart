@@ -1,6 +1,6 @@
 open Core_kernel
 open Grimheart_ast
-open Grimheart_core_errors
+open Grimheart_errors
 
 module type S = sig
   val subsumes : Type.t -> Type.t -> unit Error.t
@@ -14,7 +14,7 @@ module type S = sig
   val infer_apply : Type.t -> unit Expr.t -> Type.t Error.t
 end
 
-module Make (E : Grimheart_core_environment.S) (S : Substitutions.S) : S =
+module Make (E : Grimheart_environment.S) (S : Substitutions.S) : S =
 struct
   open Error
   open Type.Prim
