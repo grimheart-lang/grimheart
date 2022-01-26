@@ -1,12 +1,9 @@
-type type_vars_t = Core_kernel.Set.M(Core_kernel.String).t
-
-(** The type of types in the language. *)
 type t =
   | Constructor of string
   | Variable of string
-  | Skolem of string * t option
-  | Unsolved of string
-  | Forall of string * t option * t
+  | Unsolved of int
+  | Forall of string * t option * t * int option
+  | Skolem of string * t option * int * int
   | Apply of t * t
   | KindApply of t * t
   | Annotate of t * t
@@ -17,19 +14,30 @@ val pp : Format.formatter -> t -> unit
 
 val show : t -> string
 
+val type_vars : t -> Core_kernel.String.Set.t
+
 val substitute : string -> t -> t -> t
-(** [substitute a r t] takes all occurences of the variable a inside of a type t
-    and replaces them with the type r. This is essentially just alpha conversion
-    for types. *)
 
-val is_mono_type : t -> bool
-(** [is_mono_type t] determines whether some type t is a monotype. *)
+val substitute_all : (string * t) list -> t -> t
 
-val free_type_variables : t -> type_vars_t
-(** [free_type_variables t] determines the free type variables in some type t. *)
+module Traversal : sig
+  val everywhere : (t -> t) -> t -> t
 
-(** Primitive types in the language. *)
-module Primitives : sig
+  module Monadic : functor
+    (T : sig
+       type 'a t
+
+       val ( let* ) :
+         'a t -> ('a -> 'b t) -> 'b t
+     end)
+    -> sig
+    val ( let* ) : 'a T.t -> ('a -> 'b T.t) -> 'b T.t
+
+    val everywhereM : (t -> t T.t) -> t -> t T.t
+  end
+end
+
+module Prim : sig
   val t_type : t
 
   val t_char : t
@@ -49,31 +57,22 @@ module Primitives : sig
   val is_primitive_type_type : t -> bool
 end
 
-(** Syntax sugar for writing types. *)
 module Sugar : sig
   val fn : t -> t -> t
-  (** Smart constructor for creating functions. *)
 
   val ap : t -> t -> t
-  (** Smart constructor for creating applications. *)
 
   val k_ap : t -> t -> t
-  (** Smart constructor for creating kind applications. *)
 
   val an : t -> t -> t
-  (** Smart constructor for creating annotations. *)
 
   val forall : string -> t -> t
-  (** Smart constructor for foralls. *)
 
   val forall' : string -> t -> t -> t
-  (** Smart constructor for kinded foralls. *)
 
   val var : string -> t
-  (** Smart constructor for variables. *)
 
-  val uns : string -> t
-  (** Smart constructor for unsolved variables. *)
+  val uns : int -> t
 end
 
 module Pretty : sig
