@@ -32,19 +32,11 @@ struct
     in
     Type.Traversal.everywhere aux t
 
-  let fresh_unknown_type_with_kind : Type.t -> Type.t =
-    let i = ref (-1) in
-    fun kind ->
-      incr i;
-      let t = Type.Unsolved !i in
-      S.Unsolved.set !i ((!i, []), kind);
-      t
-
-  let fresh_skolem_constant : unit -> int =
-    let i = ref (-1) in
-    fun () ->
-      incr i;
-      !i
+  let fresh_unsolved_with_kind (kind : Type.t) : Type.t =
+    let i = Fresh.unknown () in
+    let t = Type.Unsolved i in
+    S.Unsolved.set i ((i, []), kind);
+    t
 
   let check_infinite_type (u : int) (t : Type.t) :
       (unit, Grimheart_core_errors.t) result =
@@ -78,7 +70,7 @@ struct
     | Forall (q, k, t1, _), _ -> (
         match k with
         | Some k ->
-            let un = fresh_unknown_type_with_kind k in
+            let un = fresh_unsolved_with_kind k in
             let t1 = Type.substitute q un t1 in
             subsumes t1 t2
         | None ->
@@ -88,7 +80,7 @@ struct
     | _, Forall (q, k, t2, s) -> (
         match s with
         | Some s ->
-            let ct = fresh_skolem_constant () in
+            let ct = Fresh.skolem () in
             let t2 = Type.substitute q (Skolem (q, k, ct, s)) t2 in
             subsumes t1 t2
         | None ->
@@ -108,7 +100,7 @@ struct
     | Forall (q1, k1, t1, s1), Forall (q2, k2, t2, s2) -> (
         match (s1, s2) with
         | Some s1, Some s2 ->
-            let ct = fresh_skolem_constant () in
+            let ct = Fresh.skolem () in
             let t1 = Type.substitute q1 (Skolem (q1, k1, ct, s1)) t1 in
             let t2 = Type.substitute q2 (Skolem (q1, k2, ct, s2)) t2 in
             unify t1 t2
@@ -119,7 +111,7 @@ struct
     | Forall (q, k, t1, s), _ -> (
         match s with
         | Some s ->
-            let ct = fresh_skolem_constant () in
+            let ct = Fresh.skolem () in
             let t1 = Type.substitute q (Skolem (q, k, ct, s)) t1 in
             unify t1 t2
         | None ->
@@ -129,7 +121,7 @@ struct
     | _, Forall (q, k, t2, s) -> (
         match s with
         | Some s ->
-            let ct = fresh_skolem_constant () in
+            let ct = Fresh.skolem () in
             let t2 = Type.substitute q (Skolem (q, k, ct, s)) t2 in
             unify t1 t2
         | None ->
@@ -159,5 +151,6 @@ struct
     failwith "infer_apply: undefined"
 
   and solve (u : int) (t : Type.t) : (unit, Grimheart_core_errors.t) result =
-    let* () = check_infinite_type u t in Ok (S.Types.set u t)
+    let* () = check_infinite_type u t in
+    Ok (S.Types.set u t)
 end

@@ -27,8 +27,7 @@ module Traversal : sig
     (T : sig
        type 'a t
 
-       val ( let* ) :
-         'a t -> ('a -> 'b t) -> 'b t
+       val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
      end)
     -> sig
     val ( let* ) : 'a T.t -> ('a -> 'b T.t) -> 'b T.t
