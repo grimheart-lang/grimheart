@@ -43,13 +43,13 @@ end
 module Error = struct
   type 'a t = ('a, Hinted.t) Result.t
 
-  let ( let* ) (x : 'a t) (f : 'a -> 'b t) : 'b t =
-    match x with Ok x -> f x | Error e -> Error e
+  let bind (a : 'a t) ~(f : 'a -> 'b t) : 'b t = Result.bind ~f a
 
-  let ( and* ) (a : 'a t) (b : 'b t) : ('a * 'b) t =
-    match (a, b) with
-    | Ok a, Ok b -> Ok (a, b)
-    | Error e, _ | _, Error e -> Error e
+  let return (a : 'a) : 'a t = Ok a
+
+  let map = `Define_using_bind
+
+  let ( let* ) (a : 'a t) (f : 'a -> 'b t) : 'b t = Result.bind ~f a
 end
 
 module Pretty = struct

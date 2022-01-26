@@ -1,3 +1,5 @@
+open Core_kernel
+
 type t =
   | Constructor of string
   | Variable of string
@@ -23,16 +25,8 @@ val substitute_all : (string * t) list -> t -> t
 module Traversal : sig
   val everywhere : (t -> t) -> t -> t
 
-  module Monadic : functor
-    (T : sig
-       type 'a t
-
-       val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
-     end)
-    -> sig
-    val ( let* ) : 'a T.t -> ('a -> 'b T.t) -> 'b T.t
-
-    val everywhereM : (t -> t T.t) -> t -> t T.t
+  module Monadic : functor (M : Monad.Basic) -> sig
+    val everywhere : (t -> t M.t) -> t -> t M.t
   end
 end
 

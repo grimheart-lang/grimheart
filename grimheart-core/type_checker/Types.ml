@@ -14,8 +14,7 @@ module type S = sig
   val infer_apply : Type.t -> unit Expr.t -> Type.t Error.t
 end
 
-module Make (E : Grimheart_environment.S) (S : Substitutions.S) : S =
-struct
+module Make (E : Grimheart_environment.S) (S : Substitutions.S) : S = struct
   open Error
   open Type.Prim
 
@@ -41,14 +40,14 @@ struct
     match (u, t) with
     | _, Unsolved _ -> Ok ()
     | _ ->
-        let module T = Type.Traversal.Monadic (Error) in
+        let module M = Type.Traversal.Monadic (Error) in
         let aux (t : Type.t) =
           match t with
           | Unsolved u' when Int.equal u u' ->
               Error (Hinted.with_message (InternalError "Infinite type."))
           | _ -> Ok t
         in
-        let* _ = T.everywhereM aux t in
+        let* _ = M.everywhere aux t in
         Ok ()
 
   let rec subsumes (t1 : Type.t) (t2 : Type.t) : unit Error.t =

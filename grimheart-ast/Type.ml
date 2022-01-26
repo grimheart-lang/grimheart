@@ -23,15 +23,10 @@ module Traversal = struct
     in
     aux t
 
-  module Monadic (T : sig
-    type 'a t
+  module Monadic (M : Monad.Basic) = struct
+    let ( let* ) x f = M.bind ~f x
 
-    val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
-  end) =
-  struct
-    let ( let* ) = T.( let* )
-
-    let everywhereM (fn : t -> t T.t) (t : t) : t T.t =
+    let everywhere (fn : t -> t M.t) (t : t) : t M.t =
       let rec aux (t : t) =
         match t with
         | Constructor _ | Variable _ | Unsolved _ | Skolem _ -> fn t
