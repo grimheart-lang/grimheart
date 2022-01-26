@@ -28,22 +28,28 @@ module Message = struct
   [@@deriving eq, show]
 end
 
-type t = HintedError of Hints.t list * Message.t [@@deriving eq, show]
+module Hinted = struct
+  type t = HintedError of Hints.t list * Message.t [@@deriving eq, show]
 
-type 'a result' = ('a, t) Result.t
+  let with_message (message : Message.t) : t = HintedError ([], message)
 
-let with_message (message : Message.t) : t = HintedError ([], message)
+  let add_hint (hint : Hints.t) : t -> t = function
+    | HintedError (hints, message) -> HintedError (hint :: hints, message)
 
-let add_hint (hint : Hints.t) = function
-  | HintedError (hints, message) -> HintedError (hint :: hints, message)
+  let with_hint (hint : Hints.t) : ('a, t) result -> ('a, t) result =
+    Result.map_error ~f:(add_hint hint)
+end
 
-let with_hint (hint : Hints.t) : 'a result' -> 'a result' =
-  Result.map_error ~f:(add_hint hint)
+module Error = struct
+  type 'a t = ('a, Hinted.t) Result.t
 
-module Let = struct
-  let ( let* ) : 'a result' -> _ = Result.( >>= )
+  let ( let* ) (x : 'a t) (f : 'a -> 'b t) : 'b t =
+    match x with Ok x -> f x | Error e -> Error e
 
-  let ( and* ) : 'a result' -> _ = Result.Let_syntax.Let_syntax.both
+  let ( and* ) (a : 'a t) (b : 'b t) : ('a * 'b) t =
+    match (a, b) with
+    | Ok a, Ok b -> Ok (a, b)
+    | Error e, _ | _, Error e -> Error e
 end
 
 module Pretty = struct
@@ -94,7 +100,7 @@ module Pretty = struct
     | UnknownConstructor c -> sprintf "unknown constructor %s" c
     | InternalError m -> sprintf "internal error: %s" m
 
-  let pretty_print : t -> string = function
+  let pretty_print_hinted : Hinted.t -> string = function
     | HintedError (hints, message) ->
         sprintf "\nan error occurred:\n\n%s\n\n%s\n"
           (pretty_print_message message)
