@@ -2,3 +2,32 @@
 
 module G_Ast = Grimheart_ast
 module G_Core = Grimheart_core
+
+module E = struct
+  open G_Ast.Type.Primitives
+  open G_Ast.Type.Sugar
+  include Grimheart_environment.Make ()
+
+  let () =
+    let open Names.Mutable in
+    set "identity" (forall "a" @@ fn (var "a") (var "a"));
+    set "escape"
+      (forall "a" @@ fn (forall "b" @@ fn (var "a") (var "b")) (var "a"))
+
+  let () =
+    let open Types.Mutable in
+      set "Escape"
+        (forall' "a" t_type
+        @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"));
+      set "Escape'"
+        (forall' "a" t_type
+        @@ fn (forall' "b" t_type @@ fn (var "b") (var "a")) (var "a"));
+      set "HigherRank" (fn (forall "a" @@ fn (var "a") (var "a")) t_type);
+      set "HigherRank'"
+        (fn (forall' "a" t_type @@ fn (var "a") (var "a")) t_type);
+      set "Identity" (forall' "a" t_type @@ fn (var "a") (var "a"));
+      set "TypeToType" (fn t_int t_int)
+end
+
+module K = Grimheart_type_checker.Kinds.Make (E)
+module T = Grimheart_type_checker.Types.Make (E) (K)
