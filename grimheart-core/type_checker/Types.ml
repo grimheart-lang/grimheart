@@ -57,8 +57,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
     | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
       when Type.equal t_function t_function1
            && Type.equal t_function t_function2 ->
-        let* theta = unify gamma a2 a1 in
-        unify theta (Context.apply theta b1) (Context.apply theta b2)
+        let* theta = subsumes gamma a2 a1 in
+        subsumes theta (Context.apply theta b1) (Context.apply theta b2)
     | _, Forall (b, k2, t2) ->
         let b' = fresh_name () in
         let t2 = Type.substitute b (Skolem (b', k2)) t2 in
