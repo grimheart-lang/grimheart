@@ -188,6 +188,9 @@ let run () =
             (Apply (Lambda ("a", Variable "a"), Literal (Int 0)))
         ; infer_type_check_fail_case "infinite types are caught"
             (Lambda ("a", Apply (Variable "a", Variable "a")))
+        ; infer_type_check_test_case "infer functions as arguments"
+            (forall "a" @@ fn (fn t_int (var "a")) (var "a"))
+            (Lambda ("f", Apply (Variable "f", Literal (Int 0))))
         ] )
     ; ( "infer-annotation"
       , [
