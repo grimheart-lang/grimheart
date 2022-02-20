@@ -41,18 +41,18 @@ module Test_input : TEST_INPUT = struct
     include Grimheart_environment.Make ()
 
     let () =
-      let open Types.Mutable in
-      set "Escape"
-        (forall' "a" t_type
-        @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"));
-      set "Escape'"
-        (forall' "a" t_type
-        @@ fn (forall' "b" t_type @@ fn (var "b") (var "a")) (var "a"));
-      set "HigherRank" (fn (forall "a" @@ fn (var "a") (var "a")) t_type);
-      set "HigherRank'"
-        (fn (forall' "a" t_type @@ fn (var "a") (var "a")) t_type);
-      set "Identity" (forall' "a" t_type @@ fn (var "a") (var "a"));
-      set "TypeToType" (fn t_int t_int)
+      Types.(
+        set "Escape"
+          (forall' "a" t_type
+          @@ fn (forall "b" @@ fn (var "b") (var "a")) (var "a"));
+        set "Escape'"
+          (forall' "a" t_type
+          @@ fn (forall' "b" t_type @@ fn (var "b") (var "a")) (var "a"));
+        set "HigherRank" (fn (forall "a" @@ fn (var "a") (var "a")) t_type);
+        set "HigherRank'"
+          (fn (forall' "a" t_type @@ fn (var "a") (var "a")) t_type);
+        set "Identity" (forall' "a" t_type @@ fn (var "a") (var "a"));
+        set "TypeToType" (fn t_int t_int))
   end
 end
 
