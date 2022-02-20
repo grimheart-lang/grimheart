@@ -3,20 +3,6 @@ open Grimheart_ast
 open Grimheart_errors
 open Grimheart_errors.Let
 
-let fresh_name : unit -> string =
-  let i = ref (-1) in
-  fun () ->
-    incr i;
-    "t" ^ string_of_int !i
-
-let insert_in_between ((gammaL, gammaR) : Context.t * Context.t)
-    ((a, a', b') : string * string * string) (ctor : Type.t -> Type.t -> Type.t)
-    : Context.t =
-  let gammaM : Context.t =
-    [Solved (a, ctor (Unsolved a') (Unsolved b')); Unsolved a'; Unsolved b']
-  in
-  List.concat [gammaL; gammaM; gammaR]
-
 module type S = sig
   val subsumes :
     Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_errors.t) result
@@ -47,6 +33,20 @@ end
 
 module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
   open Type.Primitives
+
+  let fresh_name : unit -> string =
+    let i = ref (-1) in
+    fun () ->
+      incr i;
+      "t" ^ string_of_int !i
+
+  let insert_in_between ((gammaL, gammaR) : Context.t * Context.t)
+      ((a, a', b') : string * string * string)
+      (ctor : Type.t -> Type.t -> Type.t) : Context.t =
+    let gammaM : Context.t =
+      [Solved (a, ctor (Unsolved a') (Unsolved b')); Unsolved a'; Unsolved b']
+    in
+    List.concat [gammaL; gammaM; gammaR]
 
   let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
       (Context.t, Grimheart_errors.t) result =
