@@ -46,7 +46,6 @@ module type S = sig
 end
 
 module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
-  open Env
   open Type.Primitives
 
   let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
@@ -203,8 +202,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
     | Lambda (n, e), Apply (Apply (t_function', ar), re)
       when Type.equal t_function t_function' ->
         let n' = fresh_name () in
-        Names.Mutable.bracketed (fun () ->
-            Names.Mutable.set n' ar;
+        Env.Names.Mutable.bracketed (fun () ->
+            Env.Names.Mutable.set n' ar;
             check gamma (Expr.substitute n (Variable n') e) re)
     | _, Forall (a, k, _A) ->
         let a' = fresh_name () in
@@ -249,7 +248,7 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         raise
           (Failure "todo: inference routine for object is not yet implemented")
     | Variable v -> (
-        match Names.find v with
+        match Env.Names.find v with
         | Some t -> Ok (gamma, t)
         | None -> Error (with_message (UnknownVariable v)))
     | Lambda (v, e) ->
@@ -257,8 +256,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         let b' = fresh_name () in
         let* delta =
           let v' = fresh_name () in
-          Names.Mutable.bracketed (fun () ->
-              Names.Mutable.set v' (Unsolved a');
+          Env.Names.Mutable.bracketed (fun () ->
+              Env.Names.Mutable.set v' (Unsolved a');
               Context.scoped (Unsolved b' :: Unsolved a' :: gamma) (Marker v')
                 (fun gamma ->
                   check gamma (Expr.substitute v (Variable v') e) (Unsolved b')))
@@ -279,8 +278,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
           | None -> infer gamma e1
         in
         let v' = fresh_name () in
-        Names.Mutable.bracketed (fun () ->
-            Names.Mutable.set v' t;
+        Env.Names.Mutable.bracketed (fun () ->
+            Env.Names.Mutable.set v' t;
             infer gamma (Expr.substitute v (Variable v') e2))
 
   and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
