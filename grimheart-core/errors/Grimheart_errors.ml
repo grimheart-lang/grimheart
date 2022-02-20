@@ -11,6 +11,35 @@ module Hints = struct
     | CheckingKind of Type.t * Type.t
     | InferringKind of Type.t
   [@@deriving eq, show]
+
+  module Pretty = struct
+    let pretty_print : t -> string = function
+      | SubsumingTypes (a, b) ->
+          sprintf "while subsuming the type\n  %s with %s"
+            (Type.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+      | UnifyingTypes (a, b) ->
+          sprintf "while unifying the type\n  %s with %s"
+            (Type.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+      | CheckingType (a, b) ->
+          sprintf "while checking that the expression \n  %s has type %s"
+            (Expr.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+      | InferringType a ->
+          sprintf "while inferring the expression\n  %s"
+            (Expr.Pretty.pretty_print a)
+      | UnifyingKinds (a, b) ->
+          sprintf "while unifying kinds\n  %s with %s"
+            (Type.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+      | CheckingKind (a, b) ->
+          sprintf "while checking\n  %s type has kind %s"
+            (Type.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+      | InferringKind a ->
+          sprintf "while inferring kind of\n  %s" (Type.Pretty.pretty_print a)
+  end
 end
 
 module Message = struct
@@ -26,6 +55,36 @@ module Message = struct
     | UnknownConstructor of string
     | InternalError of string
   [@@deriving eq, show]
+
+  module Pretty = struct
+    let pretty_print : t -> string = function
+      | CouldNotUnifyTypes (a, b) ->
+          sprintf "could not unify type\n\n  %s\n\nwith type\n\n  %s"
+            (Type.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+      | CouldNotInferType e ->
+          sprintf "could not infer type of\n\n  %s" (Expr.Pretty.pretty_print e)
+      | CouldNotApplyTypeOn (a, b) ->
+          sprintf "could not apply type\n\n  %s\n\nto expression\n\n  %s"
+            (Type.Pretty.pretty_print a)
+            (Expr.Pretty.pretty_print b)
+      | CouldNotUnifyKinds (a, b) ->
+          sprintf "could not unify kind\n\n  %s\n\nwith kind\n\n  %s"
+            (Type.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+      | CouldNotApplyKindOn (a, b, c) ->
+          sprintf "could not apply kind\n\n  %s : %s\n\nwith kind\n\n  %s"
+            (Type.Pretty.pretty_print a)
+            (Type.Pretty.pretty_print b)
+            (Type.Pretty.pretty_print c)
+      | EscapedSkolemVariable v ->
+          sprintf "escaped skolem variable %s" (Type.Pretty.pretty_print v)
+      | TypeVariableNotInScope v ->
+          sprintf "type variable not in scope %s" (Type.Pretty.pretty_print v)
+      | UnknownVariable n -> sprintf "unknown name %s" n
+      | UnknownConstructor c -> sprintf "unknown constructor %s" c
+      | InternalError m -> sprintf "internal error: %s" m
+  end
 end
 
 type t = HintedError of Hints.t list * Message.t [@@deriving eq, show]
@@ -47,56 +106,10 @@ module Let = struct
 end
 
 module Pretty = struct
-  module E = Expr.Pretty
-  module T = Type.Pretty
-
-  let pretty_print_hint : Hints.t -> string = function
-    | SubsumingTypes (a, b) ->
-        sprintf "while subsuming the type\n  %s with %s" (T.pretty_print a)
-          (T.pretty_print b)
-    | UnifyingTypes (a, b) ->
-        sprintf "while unifying the type\n  %s with %s" (T.pretty_print a)
-          (T.pretty_print b)
-    | CheckingType (a, b) ->
-        sprintf "while checking that the expression \n  %s has type %s"
-          (E.pretty_print a) (T.pretty_print b)
-    | InferringType a ->
-        sprintf "while inferring the expression\n  %s" (E.pretty_print a)
-    | UnifyingKinds (a, b) ->
-        sprintf "while unifying kinds\n  %s with %s" (T.pretty_print a)
-          (T.pretty_print b)
-    | CheckingKind (a, b) ->
-        sprintf "while checking\n  %s type has kind %s" (T.pretty_print a)
-          (T.pretty_print b)
-    | InferringKind a ->
-        sprintf "while inferring kind of\n  %s" (T.pretty_print a)
-
-  let pretty_print_message : Message.t -> string = function
-    | CouldNotUnifyTypes (a, b) ->
-        sprintf "could not unify type\n\n  %s\n\nwith type\n\n  %s"
-          (T.pretty_print a) (T.pretty_print b)
-    | CouldNotInferType e ->
-        sprintf "could not infer type of\n\n  %s" (E.pretty_print e)
-    | CouldNotApplyTypeOn (a, b) ->
-        sprintf "could not apply type\n\n  %s\n\nto expression\n\n  %s"
-          (T.pretty_print a) (E.pretty_print b)
-    | CouldNotUnifyKinds (a, b) ->
-        sprintf "could not unify kind\n\n  %s\n\nwith kind\n\n  %s"
-          (T.pretty_print a) (T.pretty_print b)
-    | CouldNotApplyKindOn (a, b, c) ->
-        sprintf "could not apply kind\n\n  %s : %s\n\nwith kind\n\n  %s"
-          (T.pretty_print a) (T.pretty_print b) (T.pretty_print c)
-    | EscapedSkolemVariable v ->
-        sprintf "escaped skolem variable %s" (T.pretty_print v)
-    | TypeVariableNotInScope v ->
-        sprintf "type variable not in scope %s" (T.pretty_print v)
-    | UnknownVariable n -> sprintf "unknown name %s" n
-    | UnknownConstructor c -> sprintf "unknown constructor %s" c
-    | InternalError m -> sprintf "internal error: %s" m
-
   let pretty_print : t -> string = function
     | HintedError (hints, message) ->
         sprintf "\nan error occurred:\n\n%s\n\n%s\n"
-          (pretty_print_message message)
-          (List.map ~f:pretty_print_hint hints |> String.concat ~sep:"\n\n")
+          (Message.Pretty.pretty_print message)
+          (List.map ~f:Hints.Pretty.pretty_print hints
+          |> String.concat ~sep:"\n\n")
 end
