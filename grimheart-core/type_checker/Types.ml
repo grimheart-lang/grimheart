@@ -292,7 +292,7 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
     | Unsolved a ->
         let a' = fresh_name () in
         let b' = fresh_name () in
-        let* gammaL, gammaR = Context.break_apart_at_unsolved a' gamma in
+        let* gammaL, gammaR = Context.break_apart_at_unsolved a gamma in
         let gamma =
           insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.fn
         in
