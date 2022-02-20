@@ -112,90 +112,90 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
     | KindApply (a1, b1), KindApply (a2, b2) ->
         let* gamma = Kinds.unify gamma a1 a2 in
         unify gamma b1 b2
-    | _U, Annotate (_T, _K) ->
-        let* gamma, _ = Kinds.check gamma _U _K in
-        unify gamma _U _T
-    | Annotate (_T, _K), _U ->
-        let* gamma, _ = Kinds.check gamma _U _K in
-        unify gamma _T _U
+    | _, Annotate (t, k) ->
+        let* gamma, _ = Kinds.check gamma t k in
+        unify gamma t1 t
+    | Annotate (t, k), _ ->
+        let* gamma, _ = Kinds.check gamma t k in
+        unify gamma t t2
     | _ -> Error (with_message (CouldNotUnifyTypes (t1, t2)))
 
-  and solve (gamma : Context.t) (a : string) (_B : Type.t) :
+  and solve (gamma : Context.t) (a : string) (t : Type.t) :
       (Context.t, Grimheart_errors.t) result =
     let* (gammaL, gammaR) : Context.t * Context.t =
       Context.break_apart_at_unsolved a gamma
     in
     let insertSolved (t : Type.t) : (Context.t, Grimheart_errors.t) result =
-      let* _ = Context.well_formed_type gammaR _B in
+      let* _ = Context.well_formed_type gammaR t in
       Ok (List.append gammaL (Solved (a, t) :: gammaR))
     in
-    match _B with
-    | Constructor _ -> insertSolved _B
-    | Variable _ -> insertSolved _B
-    | Skolem _ -> insertSolved _B
+    match t with
+    | Constructor _ -> insertSolved t
+    | Variable _ -> insertSolved t
+    | Skolem _ -> insertSolved t
     | Unsolved b -> (
         match Context.break_apart_at_unsolved b gammaL with
-        | Error _ -> insertSolved _B
+        | Error _ -> insertSolved t
         | Ok (gammaLL, gammaLR) ->
             let gammaL =
               List.append gammaLL (Solved (b, Unsolved a) :: gammaLR)
             in
             let gamma = List.append gammaL (Unsolved a :: gammaR) in
             Ok gamma)
-    | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
+    | Apply (Apply (t_function', i), o) when Type.equal t_function t_function'
       ->
         let a' = fresh_name () in
         let b' = fresh_name () in
         let gamma =
           insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.fn
         in
-        let* theta = solve gamma a' _A in
-        solve theta b' (Context.apply theta _B)
-    | Forall (b, _, _B) ->
-        Context.scoped gamma (Quantified b) (fun gamma -> solve gamma a _B)
-    | Apply (_A, _B) ->
+        let* theta = solve gamma a' i in
+        solve theta b' (Context.apply theta o)
+    | Forall (b, _, t) ->
+        Context.scoped gamma (Quantified b) (fun gamma -> solve gamma a t)
+    | Apply (f, x) ->
         let a' = fresh_name () in
         let b' = fresh_name () in
         let gamma =
           insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.ap
         in
-        let* theta = solve gamma a' _A in
-        solve theta b' (Context.apply theta _B)
-    | KindApply (_A, _B) ->
+        let* theta = solve gamma a' f in
+        solve theta b' (Context.apply theta x)
+    | KindApply (f, x) ->
         let a' = fresh_name () in
         let b' = fresh_name () in
         let gamma =
           insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.k_ap
         in
-        let* theta = solve gamma a' _A in
-        solve theta b' (Context.apply theta _B)
-    | Annotate (_A, _B) ->
+        let* theta = solve gamma a' f in
+        solve theta b' (Context.apply theta x)
+    | Annotate (t, k) ->
         let a' = fresh_name () in
         let b' = fresh_name () in
         let gamma =
           insert_in_between (gammaL, gammaR) (a, a', b') Type.Sugar.an
         in
-        let* theta = solve gamma a' _A in
-        solve theta b' (Context.apply theta _B)
+        let* theta = solve gamma a' t in
+        solve theta b' (Context.apply theta k)
 
-  and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
+  and check (gamma : Context.t) (e : _ Expr.t) (t : Type.t) :
       (Context.t, Grimheart_errors.t) result =
-    with_hint (CheckingType (e, _A))
+    with_hint (CheckingType (e, t))
     @@
-    match (e, _A) with
+    match (e, t) with
     | Literal (Char _), Constructor "Char"
     | Literal (String _), Constructor "String"
     | Literal (Int _), Constructor "Int"
     | Literal (Float _), Constructor "Float" ->
         Ok gamma
-    | Literal (Array _As), Apply (Constructor "Array", _A') ->
+    | Literal (Array ts), Apply (Constructor "Array", t) ->
         let rec aux gamma = function
-          | h :: t ->
-              let* gamma = check gamma h _A' in
-              aux gamma t
+          | h :: rest ->
+              let* gamma = check gamma h t in
+              aux gamma rest
           | [] -> Ok gamma
         in
-        aux gamma _As
+        aux gamma ts
     | Literal (Object _), _ ->
         raise
           (Failure "todo: checking routine for object is not yet implemented")
@@ -205,13 +205,13 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         Env.Names.Mutable.bracketed (fun () ->
             Env.Names.Mutable.set n' ar;
             check gamma (Expr.substitute n (Variable n') e) re)
-    | _, Forall (a, k, _A) ->
+    | _, Forall (a, k, t) ->
         let a' = fresh_name () in
-        let _A = Type.substitute a (Skolem (a', k)) _A in
-        Context.scoped gamma (Quantified a') (fun gamma -> check gamma e _A)
+        let t = Type.substitute a (Skolem (a', k)) t in
+        Context.scoped gamma (Quantified a') (fun gamma -> check gamma e t)
     | _ ->
-        let* theta, _A' = infer gamma e in
-        subsumes theta (Context.apply theta _A') (Context.apply theta _A)
+        let* theta, t' = infer gamma e in
+        subsumes theta (Context.apply theta t') (Context.apply theta t)
 
   and infer (gamma : Context.t) (e : _ Expr.t) :
       (Context.t * Type.t, Grimheart_errors.t) result =
@@ -222,7 +222,7 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
     | Literal (String _) -> Ok (gamma, t_string)
     | Literal (Int _) -> Ok (gamma, t_int)
     | Literal (Float _) -> Ok (gamma, t_float)
-    | Literal (Array _As) ->
+    | Literal (Array ts) ->
         let a = fresh_name () in
         let rec aux (gamma : Context.t) (current_t : Type.t option) :
             _ -> (Context.t * Type.t, Grimheart_errors.t) result = function
@@ -243,7 +243,7 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
               | Some current_t -> Ok (gamma, Apply (t_array, current_t))
               | None -> Ok (Unsolved a :: gamma, Apply (t_array, Unsolved a)))
         in
-        aux gamma None _As
+        aux gamma None ts
     | Literal (Object _) ->
         raise
           (Failure "todo: inference routine for object is not yet implemented")
@@ -282,13 +282,13 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
             Env.Names.Mutable.set v' t;
             infer gamma (Expr.substitute v (Variable v') e2))
 
-  and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
+  and infer_apply (gamma : Context.t) (t : Type.t) (e : _ Expr.t) :
       (Context.t * Type.t, Grimheart_errors.t) result =
-    match _A with
-    | Forall (a, _K, _A) ->
+    match t with
+    | Forall (a, _, t) ->
         let a' = fresh_name () in
-        let _A = Type.substitute a (Unsolved a') _A in
-        infer_apply (Unsolved a' :: gamma) _A e
+        let t = Type.substitute a (Unsolved a') t in
+        infer_apply (Unsolved a' :: gamma) t e
     | Unsolved a ->
         let a' = fresh_name () in
         let b' = fresh_name () in
@@ -298,11 +298,11 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         in
         let* delta = check gamma e (Unsolved a') in
         Ok (delta, Type.Unsolved b')
-    | Apply (Apply (t_function', _A), _B) when Type.equal t_function t_function'
+    | Apply (Apply (t_function', i), o) when Type.equal t_function t_function'
       ->
-        let* delta = check gamma e _A in
-        Ok (delta, _B)
-    | _ -> Error (with_message (CouldNotApplyTypeOn (_A, e)))
+        let* delta = check gamma e i in
+        Ok (delta, o)
+    | _ -> Error (with_message (CouldNotApplyTypeOn (t, e)))
 
   let infer_type_with (context : Context.t) (e : _ Expr.t) :
       (Type.t, Grimheart_errors.t) result =
