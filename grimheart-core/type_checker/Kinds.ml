@@ -16,27 +16,44 @@ let should_instantiate : Type.t -> bool = function
 
 module type S = sig
   val instantiate :
-    Context.t -> Type.t * Type.t -> Type.t -> (Context.t * Type.t) result'
+       Context.t
+    -> Type.t * Type.t
+    -> Type.t
+    -> (Context.t * Type.t, Grimheart_errors.t) result
 
-  val check : Context.t -> Type.t -> Type.t -> (Context.t * Type.t) result'
+  val check :
+       Context.t
+    -> Type.t
+    -> Type.t
+    -> (Context.t * Type.t, Grimheart_errors.t) result
 
-  val infer : Context.t -> Type.t -> (Context.t * Type.t * Type.t) result'
+  val infer :
+       Context.t
+    -> Type.t
+    -> (Context.t * Type.t * Type.t, Grimheart_errors.t) result
 
   val infer_apply :
        Context.t
     -> Type.t * Type.t
     -> Type.t
-    -> (Context.t * Type.t * Type.t) result'
+    -> (Context.t * Type.t * Type.t, Grimheart_errors.t) result
 
-  val elaborate : Context.t -> Type.t -> Type.t result'
+  val elaborate : Context.t -> Type.t -> (Type.t, Grimheart_errors.t) result
 
-  val subsumes : Context.t -> Type.t -> Type.t -> Context.t result'
+  val subsumes :
+    Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_errors.t) result
 
-  val unify : Context.t -> Type.t -> Type.t -> Context.t result'
+  val unify :
+    Context.t -> Type.t -> Type.t -> (Context.t, Grimheart_errors.t) result
 
-  val promote : Context.t -> string -> Type.t -> (Context.t * Type.t) result'
+  val promote :
+       Context.t
+    -> string
+    -> Type.t
+    -> (Context.t * Type.t, Grimheart_errors.t) result
 
-  val unify_unsolved : Context.t -> string -> Type.t -> Context.t result'
+  val unify_unsolved :
+    Context.t -> string -> Type.t -> (Context.t, Grimheart_errors.t) result
 end
 
 module Make (Env : Grimheart_environment.S) : S = struct
@@ -47,7 +64,7 @@ module Make (Env : Grimheart_environment.S) : S = struct
       "k" ^ string_of_int !i
 
   let rec instantiate (ctx : Context.t) ((t1, k1) : Type.t * Type.t)
-      (k2 : Type.t) : (Context.t * Type.t) result' =
+      (k2 : Type.t) : (Context.t * Type.t, Grimheart_errors.t) result =
     match k1 with
     (* A-INST_FORALL *)
     | Forall (a, Some k, t) when not @@ should_instantiate k2 ->
@@ -62,13 +79,13 @@ module Make (Env : Grimheart_environment.S) : S = struct
         Ok (ctx, t1)
 
   and check (ctx : Context.t) (t : Type.t) (w : Type.t) :
-      (Context.t * Type.t) result' =
+      (Context.t * Type.t, Grimheart_errors.t) result =
     (* A-KC-SUB *)
     let* ctx, t, k = infer ctx t in
     instantiate ctx (t, Context.apply ctx w) (Context.apply ctx k)
 
   and infer (ctx : Context.t) (t : Type.t) :
-      (Context.t * Type.t * Type.t) result' =
+      (Context.t * Type.t * Type.t, Grimheart_errors.t) result =
     let open Type.Primitives in
     match t with
     (* A-KTT-CON *)
@@ -158,7 +175,7 @@ module Make (Env : Grimheart_environment.S) : S = struct
         Ok (ctx, t1, Context.apply ctx t2)
 
   and infer_apply (ctx : Context.t) ((fn, fnKind) : Type.t * Type.t)
-      (ar : Type.t) : (Context.t * Type.t * Type.t) result' =
+      (ar : Type.t) : (Context.t * Type.t * Type.t, Grimheart_errors.t) result =
     let open Type.Primitives in
     match fnKind with
     (* A-KAPP-FORALL *)
@@ -193,7 +210,8 @@ module Make (Env : Grimheart_environment.S) : S = struct
         Ok (ctx, Type.Apply (fn, t), Context.apply ctx rtKind)
     | _ -> Error (with_message (CouldNotApplyKindOn (fn, fnKind, ar)))
 
-  and elaborate (ctx : Context.t) (_T : Type.t) : Type.t result' =
+  and elaborate (ctx : Context.t) (_T : Type.t) :
+      (Type.t, Grimheart_errors.t) result =
     let open Type.Primitives in
     match _T with
     | Skolem (_, k) -> (
@@ -261,8 +279,8 @@ module Make (Env : Grimheart_environment.S) : S = struct
     (* A-ELA-ANNOTATE *)
     | Annotate (_, _K) -> Ok _K
 
-  and subsumes (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) : Context.t result'
-      =
+  and subsumes (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
+      (Context.t, Grimheart_errors.t) result =
     let open Type.Primitives in
     match (t1, t2) with
     | Apply (Apply (t_function1, a1), b1), Apply (Apply (t_function2, a2), b2)
@@ -293,7 +311,8 @@ module Make (Env : Grimheart_environment.S) : S = struct
                     subsumes ctx t t2)))
     | _ -> unify ctx t1 t2
 
-  and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) : Context.t result' =
+  and unify (ctx : Context.t) (t1 : Type.t) (t2 : Type.t) :
+      (Context.t, Grimheart_errors.t) result =
     match (t1, t2) with
     (* A-U-APP *)
     | Apply (p1, p2), Apply (p3, p4) ->
@@ -313,7 +332,7 @@ module Make (Env : Grimheart_environment.S) : S = struct
     | _A, _B -> Error (with_message (CouldNotUnifyKinds (_A, _B)))
 
   and promote (ctx : Context.t) (a : string) (t : Type.t) :
-      (Context.t * Type.t) result' =
+      (Context.t * Type.t, Grimheart_errors.t) result =
     match t with
     (* A-PR-KUVARL / A-PR-KUVARR-TT *)
     | Unsolved b -> (
@@ -348,7 +367,7 @@ module Make (Env : Grimheart_environment.S) : S = struct
         Ok (ctx, t)
 
   and unify_unsolved (ctx : Context.t) (a : string) (p1 : Type.t) :
-      Context.t result' =
+      (Context.t, Grimheart_errors.t) result =
     let* ctx, p2 = promote ctx a p1 in
     let* ctx2, w1, ctx1 = Context.break_apart_at_kinded_unsolved a ctx in
     let* w2 = elaborate ctx1 p2 in

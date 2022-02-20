@@ -89,20 +89,18 @@ end
 
 type t = HintedError of Hints.t list * Message.t [@@deriving eq, show]
 
-type 'a result' = ('a, t) Result.t
-
 let with_message (message : Message.t) : t = HintedError ([], message)
 
 let add_hint (hint : Hints.t) = function
   | HintedError (hints, message) -> HintedError (hint :: hints, message)
 
-let with_hint (hint : Hints.t) : 'a result' -> 'a result' =
+let with_hint (hint : Hints.t) : ('a, t) result -> ('a, t) result =
   Result.map_error ~f:(add_hint hint)
 
 module Let = struct
-  let ( let* ) : 'a result' -> _ = Result.( >>= )
+  let ( let* ) : ('a, t) result -> _ = Result.( >>= )
 
-  let ( and* ) : 'a result' -> _ = Result.Let_syntax.Let_syntax.both
+  let ( and* ) : ('a, t) result -> _ = Result.Let_syntax.Let_syntax.both
 end
 
 module Pretty = struct

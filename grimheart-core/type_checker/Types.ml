@@ -50,7 +50,7 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
   open Type.Primitives
 
   let rec subsumes (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
-      Context.t result' =
+      (Context.t, Grimheart_errors.t) result =
     with_hint (SubsumingTypes (t1, t2))
     @@
     match (t1, t2) with
@@ -69,8 +69,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         Context.scoped_unsolved gamma a' (fun gamma -> subsumes gamma t1 t2)
     | _ -> unify gamma t1 t2
 
-  and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) : Context.t result'
-      =
+  and unify (gamma : Context.t) (t1 : Type.t) (t2 : Type.t) :
+      (Context.t, Grimheart_errors.t) result =
     with_hint (UnifyingTypes (t1, t2))
     @@
     match (t1, t2) with
@@ -121,11 +121,12 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         unify gamma _T _U
     | _ -> Error (with_message (CouldNotUnifyTypes (t1, t2)))
 
-  and solve (gamma : Context.t) (a : string) (_B : Type.t) : Context.t result' =
+  and solve (gamma : Context.t) (a : string) (_B : Type.t) :
+      (Context.t, Grimheart_errors.t) result =
     let* (gammaL, gammaR) : Context.t * Context.t =
       Context.break_apart_at_unsolved a gamma
     in
-    let insertSolved (t : Type.t) : Context.t result' =
+    let insertSolved (t : Type.t) : (Context.t, Grimheart_errors.t) result =
       let* _ = Context.well_formed_type gammaR _B in
       Ok (List.append gammaL (Solved (a, t) :: gammaR))
     in
@@ -178,8 +179,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         let* theta = solve gamma a' _A in
         solve theta b' (Context.apply theta _B)
 
-  and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) : Context.t result'
-      =
+  and check (gamma : Context.t) (e : _ Expr.t) (_A : Type.t) :
+      (Context.t, Grimheart_errors.t) result =
     with_hint (CheckingType (e, _A))
     @@
     match (e, _A) with
@@ -213,7 +214,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         let* theta, _A' = infer gamma e in
         subsumes theta (Context.apply theta _A') (Context.apply theta _A)
 
-  and infer (gamma : Context.t) (e : _ Expr.t) : (Context.t * Type.t) result' =
+  and infer (gamma : Context.t) (e : _ Expr.t) :
+      (Context.t * Type.t, Grimheart_errors.t) result =
     with_hint (InferringType e)
     @@
     match e with
@@ -224,7 +226,7 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
     | Literal (Array _As) ->
         let a = fresh_name () in
         let rec aux (gamma : Context.t) (current_t : Type.t option) :
-            _ -> (Context.t * Type.t) result' = function
+            _ -> (Context.t * Type.t, Grimheart_errors.t) result = function
           | h :: t -> (
               let* gamma, inferred_t = infer gamma h in
               match (inferred_t, current_t) with
@@ -282,7 +284,7 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
             infer gamma (Expr.substitute v (Variable v') e2))
 
   and infer_apply (gamma : Context.t) (_A : Type.t) (e : _ Expr.t) :
-      (Context.t * Type.t) result' =
+      (Context.t * Type.t, Grimheart_errors.t) result =
     match _A with
     | Forall (a, _K, _A) ->
         let a' = fresh_name () in
@@ -303,7 +305,8 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
         Ok (delta, _B)
     | _ -> Error (with_message (CouldNotApplyTypeOn (_A, e)))
 
-  let infer_type_with (context : Context.t) (e : _ Expr.t) : Type.t result' =
+  let infer_type_with (context : Context.t) (e : _ Expr.t) :
+      (Type.t, Grimheart_errors.t) result =
     let* delta, poly_type = infer context e in
     let fresh_variable =
       let i = ref (-1) in
@@ -320,5 +323,6 @@ module Make (Env : Grimheart_environment.S) (Kinds : Kinds.S) : S = struct
     in
     Ok (List.fold_right delta ~f:algebra ~init:(Context.apply delta poly_type))
 
-  let infer_type : _ Expr.t -> Type.t result' = infer_type_with []
+  let infer_type : _ Expr.t -> (Type.t, Grimheart_errors.t) result =
+    infer_type_with []
 end
